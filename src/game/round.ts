@@ -16,11 +16,25 @@ export type PlayRoundInput = {
   rng?: () => number
 }
 
+/** Per-seat outcome for UI (Úp bài / Đặc biệt / Binh). */
+export type SeatRoundStatus = {
+  folded: boolean
+  specialKind: number
+  foul?: boolean
+}
+
 export type PlayRoundResult = {
   chiScores: number[]
   soAtScores: number[]
   roundScores: number[]
   botArrangements: Arrangement[]
+  seatStatuses: SeatRoundStatus[]
+}
+
+type ResolvedSeat = {
+  seat: SeatArrangement
+  status: SeatRoundStatus
+  arrangement?: Arrangement
 }
 
 /** Placeholder 3+5+5 split when special has no arranged layout (Dragon / SixPairs). */
@@ -35,9 +49,12 @@ function chunkHand(hand: Card[]): Arrangement {
 function resolveHuman(
   human: PlayRoundInput['human'],
   hand: Card[],
-): SeatArrangement {
+): ResolvedSeat {
   if (human === 'fold') {
-    return { front: [], middle: [], back: [], folded: true }
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
   }
 
   if (human === 'claim') {
@@ -45,24 +62,38 @@ function resolveHuman(
     if (special.kind > 0) {
       const arr = special.arranged ?? chunkHand(hand)
       return {
-        front: arr.front,
-        middle: arr.middle,
-        back: arr.back,
-        specialKind: special.kind,
+        seat: {
+          front: arr.front,
+          middle: arr.middle,
+          back: arr.back,
+          specialKind: special.kind,
+        },
+        status: { folded: false, specialKind: special.kind },
+        arrangement: arr,
       }
     }
     // Invalid claim (no special) → fold for chi
-    return { front: [], middle: [], back: [], folded: true }
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
   }
 
   if (isFoul(human.front, human.middle, human.back)) {
-    return { front: [], middle: [], back: [], folded: true }
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0, foul: true },
+    }
   }
 
   return {
-    front: human.front,
-    middle: human.middle,
-    back: human.back,
+    seat: {
+      front: human.front,
+      middle: human.middle,
+      back: human.back,
+    },
+    status: { folded: false, specialKind: 0 },
+    arrangement: human,
   }
 }
 
@@ -70,7 +101,7 @@ function resolveBot(
   hand: Card[],
   level: LevelId,
   rng: () => number,
-): { seat: SeatArrangement; arrangement: Arrangement } {
+): ResolvedSeat {
   const levelDef = LEVELS[level]
   const special = detectSpecial(hand)
 
@@ -83,6 +114,7 @@ function resolveBot(
         back: arr.back,
         specialKind: special.kind,
       },
+      status: { folded: false, specialKind: special.kind },
       arrangement: arr,
     }
   }
@@ -93,6 +125,7 @@ function resolveBot(
   if (shouldBotFold(expectedPoints, level)) {
     return {
       seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
       arrangement: arr,
     }
   }
@@ -103,6 +136,7 @@ function resolveBot(
       middle: arr.middle,
       back: arr.back,
     },
+    status: { folded: false, specialKind: 0 },
     arrangement: arr,
   }
 }
@@ -113,24 +147,27 @@ function resolveBot(
  */
 export function playRound(input: PlayRoundInput): PlayRoundResult {
   const rng = input.rng ?? Math.random
-  const seats: SeatArrangement[] = [
-    resolveHuman(input.human, input.hands[0]),
-  ]
+  const humanResolved = resolveHuman(input.human, input.hands[0])
+  const seats: SeatArrangement[] = [humanResolved.seat]
+  const seatStatuses: SeatRoundStatus[] = [humanResolved.status]
   const botArrangements: Arrangement[] = []
 
   for (let i = 1; i <= 3; ++i) {
-    const { seat, arrangement } = resolveBot(
-      input.hands[i]!,
-      input.level,
-      rng,
-    )
-    seats.push(seat)
-    botArrangements.push(arrangement)
+    const resolved = resolveBot(input.hands[i]!, input.level, rng)
+    seats.push(resolved.seat)
+    seatStatuses.push(resolved.status)
+    botArrangements.push(resolved.arrangement!)
   }
 
   const chiScores = scoreRoundChi(seats)
   const soAtScores = scoreSoAt(input.hands)
   const roundScores = chiScores.map((c, i) => c + soAtScores[i]!)
 
-  return { chiScores, soAtScores, roundScores, botArrangements }
+  return {
+    chiScores,
+    soAtScores,
+    roundScores,
+    botArrangements,
+    seatStatuses,
+  }
 }
