@@ -37,7 +37,12 @@ function metrics(hand: Card[]): Metrics {
   }
 }
 
-/** Positive if a ranks above b (higher So Át place). */
+/**
+ * Positive if a ranks above b (higher So Át place).
+ * Order (So Át): aceCount first — 2 Aces always beat 1 Ace, even Ace♥ —
+ * then strongest Ace suit only when counts tie and count > 0.
+ * Order (So Hai, both 0 Aces): twoCount first, then strongest Two suit.
+ */
 function compareMetrics(a: Metrics, b: Metrics): number {
   if (a.aceCount !== b.aceCount) return a.aceCount - b.aceCount
   if (a.aceCount > 0) return a.aceSuit - b.aceSuit

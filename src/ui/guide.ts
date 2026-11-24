@@ -58,11 +58,12 @@ export function createGuideSheet(): {
           </table>
           <p><strong>Cách xếp hạng So Át</strong> (theo 13 lá đã chia, không phụ thuộc cách xếp chi):</p>
           <ol>
-            <li>Nhiều <strong>Át (A)</strong> hơn → xếp trên.</li>
-            <li>Cùng số Át (&gt; 0): so <strong>Át mạnh nhất</strong> theo chất <strong>♥ &gt; ♦ &gt; ♣ &gt; ♠</strong>.</li>
-            <li>Nhóm còn lại đều <strong>0 Át</strong>: so <strong>Hai (lá 2)</strong> — đếm số Hai, hòa thì so chất Hai mạnh nhất (cùng thứ tự chất).</li>
+            <li><strong>Đếm số Át trước</strong> — nhiều Át hơn luôn xếp trên. Ví dụ <strong>2 Át luôn hơn 1 Át</strong>, kể cả khi Át đơn là Át cơ (♥).</li>
+            <li>Chỉ khi <strong>cùng số Át</strong> (&gt; 0) mới so chất của <strong>Át mạnh nhất</strong>: <strong>♥ &gt; ♦ &gt; ♣ &gt; ♠</strong>.</li>
+            <li>Nhóm còn lại đều <strong>0 Át</strong> → <strong>So Hai</strong> cùng nguyên tắc: <strong>đếm số Hai trước</strong> (2 Hai hơn 1 Hai), hòa số mới so chất Hai mạnh nhất (cùng thứ tự chất).</li>
             <li>Vẫn hòa: chia đều điểm các hạng bị chiếm.</li>
           </ol>
+          <p><em>Lưu ý:</em> So Át (ưu tiên số lượng) khác <strong>Át to nhất</strong> ở mục dưới (chỉ so Át mạnh nhất trên bàn).</p>
         </section>
 
         <section>

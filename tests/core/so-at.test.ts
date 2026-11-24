@@ -48,6 +48,27 @@ describe('so-at pot', () => {
     expect(scoreSoAt(hands).reduce((a, b) => a + b, 0)).toBe(0)
   })
 
+  it('2 Aces beat 1 Ace♥ — count before suit', () => {
+    const hands = [
+      hand(c(12, 0), c(12, 1)), // 2 Aces ♠♣ → Nhất (count)
+      hand(c(12, 3)), // 1 Ace♥ → Nhì (suit alone không thắng số)
+      hand(),
+      hand(),
+    ]
+    expect(scoreSoAt(hands)).toEqual(nets([30, 20, 5, 5]))
+  })
+
+  it('So Hai: 2 Hai beat 1 Hai♥ — count before suit', () => {
+    const hands = [
+      hand(c(0, 0), c(0, 1)), // 2 Hai ♠♣ → Ba (sau 2 nhà 1 Ace)
+      hand(c(0, 3)), // 1 Hai♥
+      hand(c(12, 0)), // 1 Ace → Nhất
+      hand(c(12, 1)), // 1 Ace → Nhì (♣ < sẽ so chất)
+    ]
+    // Ace♠ vs Ace♣: ♣ mạnh hơn → seat3 Nhất, seat2 Nhì; rồi So Hai: 2 Hai > 1 Hai♥
+    expect(scoreSoAt(hands)).toEqual(nets([10, 0, 20, 30]))
+  })
+
   it('two players with 1 Ace: Hearts Ace beats Spades Ace', () => {
     const hands = [
       hand(c(12, 3)), // Ace♥ → 30
