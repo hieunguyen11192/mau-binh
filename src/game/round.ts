@@ -6,7 +6,7 @@ import { isFoul } from '../core/hand'
 import { LEVELS, shouldBotFold, type LevelId } from '../core/levels'
 import { scoreRoundChi, type SeatArrangement } from '../core/scoring'
 import { detectSpecial } from '../core/special'
-import { scoreSoAt } from '../core/so-at'
+import { scoreAtLonhat, scoreSoAt } from '../core/so-at'
 import type { Arrangement, Card } from '../core/types'
 
 export type PlayRoundInput = {
@@ -25,7 +25,10 @@ export type SeatRoundStatus = {
 
 export type PlayRoundResult = {
   chiScores: number[]
+  /** So Át pot net (ante 15, payout 30/20/10/0). */
   soAtScores: number[]
+  /** Át to nhất pot net (ante 5, strongest Ace takes 20). */
+  atLonScores: number[]
   roundScores: number[]
   botArrangements: Arrangement[]
   seatStatuses: SeatRoundStatus[]
@@ -143,7 +146,8 @@ function resolveBot(
 
 /**
  * Orchestrate one round: bots arrange (handicap / claim / fold), human action,
- * then chi + So Át. So Át always uses full dealt hands (folded seats included).
+ * then chi + So Át pot + Át to nhất. Ace pots always use full dealt hands
+ * (folded seats included).
  */
 export function playRound(input: PlayRoundInput): PlayRoundResult {
   const rng = input.rng ?? Math.random
@@ -161,11 +165,15 @@ export function playRound(input: PlayRoundInput): PlayRoundResult {
 
   const chiScores = scoreRoundChi(seats)
   const soAtScores = scoreSoAt(input.hands)
-  const roundScores = chiScores.map((c, i) => c + soAtScores[i]!)
+  const atLonScores = scoreAtLonhat(input.hands)
+  const roundScores = chiScores.map(
+    (c, i) => c + soAtScores[i]! + atLonScores[i]!,
+  )
 
   return {
     chiScores,
     soAtScores,
+    atLonScores,
     roundScores,
     botArrangements,
     seatStatuses,

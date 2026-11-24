@@ -310,6 +310,7 @@ export function mountTable(host: HTMLElement): void {
         name,
         chi: result.chiScores[i]!,
         soAt: result.soAtScores[i]!,
+        atLon: result.atLonScores[i]!,
         total: result.roundScores[i]!,
         cumulative: state.totals[i]!,
         statusLabel: statusLabelVi(result.seatStatuses[i]!),

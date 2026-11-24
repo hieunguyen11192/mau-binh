@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { optimizeHand } from '../../src/ai/optimizer'
 import { dealHands } from '../../src/core/deal'
 import { isFoul } from '../../src/core/hand'
-import { scoreSoAt } from '../../src/core/so-at'
+import { scoreAtLonhat, scoreSoAt } from '../../src/core/so-at'
 import { detectSpecial } from '../../src/core/special'
 import { playRound } from '../../src/game/round'
 import type { Arrangement, Card } from '../../src/core/types'
@@ -51,25 +51,29 @@ describe('playRound', () => {
 
     expect(a.chiScores).toHaveLength(4)
     expect(a.soAtScores).toHaveLength(4)
+    expect(a.atLonScores).toHaveLength(4)
     expect(a.roundScores).toHaveLength(4)
     expect(a.botArrangements).toHaveLength(3)
     expect(a.seatStatuses).toHaveLength(4)
     expect(a.roundScores).toEqual(
-      a.chiScores.map((c, i) => c + a.soAtScores[i]!),
+      a.chiScores.map((c, i) => c + a.soAtScores[i]! + a.atLonScores[i]!),
     )
     expect(a.soAtScores).toEqual(scoreSoAt(hands))
+    expect(a.atLonScores).toEqual(scoreAtLonhat(hands))
     expect(a).toEqual(b)
   })
 
-  it('human fold → chi 0 but soAt may be > 0', () => {
-    // Fixed hands: seat0 Nhất (3 Aces) → soAt 30; bots still arrange via jo
+  it('human fold → chi 0 but So Át / Át to still score', () => {
+    // seat0 Nhất So Át (3 Aces ♠♣♦); seat1 holds Ace♥ → Át to nhất
     const hands: [Card[], Card[], Card[], Card[]] = [
-      pad([c(12, 0), c(12, 1), c(12, 2)], 3), // 3 Aces → Nhất
-      pad([c(12, 3)], 1), // 1 Ace
-      pad([c(0, 0), c(0, 1)], 2), // 0 Ace, 2 Twos
-      pad([c(0, 2)], 4), // 0 Ace, 1 Two
+      pad([c(12, 0), c(12, 1), c(12, 2)], 3),
+      pad([c(12, 3)], 1),
+      pad([c(0, 0), c(0, 1)], 2),
+      pad([c(0, 2)], 4),
     ]
-    expect(scoreSoAt(hands)[0]).toBe(30)
+    expect(scoreSoAt(hands)[0]).toBe(15) // 30 − 15 ante
+    expect(scoreAtLonhat(hands)[0]).toBe(-5) // Ace♥ at seat1
+    expect(scoreAtLonhat(hands)[1]).toBe(15)
 
     const result = playRound({
       level: 'jo',
@@ -79,8 +83,9 @@ describe('playRound', () => {
     })
 
     expect(result.chiScores[0]).toBe(0)
-    expect(result.soAtScores[0]).toBe(30)
-    expect(result.roundScores[0]).toBe(30)
+    expect(result.soAtScores[0]).toBe(15)
+    expect(result.atLonScores[0]).toBe(-5)
+    expect(result.roundScores[0]).toBe(10)
     expect(result.seatStatuses[0]).toEqual({
       folded: true,
       specialKind: 0,

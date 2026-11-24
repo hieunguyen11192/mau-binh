@@ -2,6 +2,7 @@ export type SeatScoreRow = {
   name: string
   chi: number
   soAt: number
+  atLon: number
   total: number
   cumulative: number
   /** Úp bài / Đặc biệt / Binh — shown under seat name when set. */
@@ -48,6 +49,7 @@ export function createScoreboard(parent: HTMLElement): ScoreboardView {
             <th>Ghế</th>
             <th>Chi</th>
             <th>So Át</th>
+            <th>Át to</th>
             <th>Tổng</th>
           </tr>
         </thead>
@@ -98,6 +100,7 @@ export function createScoreboard(parent: HTMLElement): ScoreboardView {
         <td>${r.name}${label}</td>
         <td class="${ptsClass(r.chi)}">${formatPts(r.chi)}</td>
         <td class="${ptsClass(r.soAt)}">${formatPts(r.soAt)}</td>
+        <td class="${ptsClass(r.atLon)}">${formatPts(r.atLon)}</td>
         <td class="${ptsClass(r.total)}">${formatPts(r.total)}</td>
       </tr>`
       })
