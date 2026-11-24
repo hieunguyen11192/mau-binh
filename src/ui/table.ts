@@ -1,8 +1,14 @@
 import { optimizeHand } from '../ai/optimizer'
 import { dealHands } from '../core/deal'
+import { isFoul } from '../core/hand'
 import { LEVELS, type LevelId } from '../core/levels'
+import { detectSpecial } from '../core/special'
 import type { Arrangement, Card } from '../core/types'
-import { playRound, type PlayRoundResult } from '../game/round'
+import {
+  playRound,
+  type PlayRoundResult,
+  type SeatRoundStatus,
+} from '../game/round'
 import {
   createArrangeController,
   createBackCard,
@@ -16,6 +22,14 @@ import {
   seatNames,
   type ScoreboardView,
 } from './scoreboard'
+
+/** VI label for scoreboard / seat badge from round outcome. */
+function statusLabelVi(s: SeatRoundStatus): string | undefined {
+  if (s.foul) return 'Binh'
+  if (s.specialKind > 0) return 'Đặc biệt'
+  if (s.folded) return 'Úp bài'
+  return undefined
+}
 
 type Phase = 'idle' | 'arrange' | 'result'
 
@@ -159,13 +173,39 @@ export function mountTable(host: HTMLElement): void {
     }
   }
 
-  function renderBotReveal(arrangements: Arrangement[]): void {
+  function renderBotReveal(
+    arrangements: Arrangement[],
+    seatStatuses: SeatRoundStatus[],
+  ): void {
     for (let i = 0; i < 3; ++i) {
+      const seatEl = botsRow.querySelector<HTMLElement>(`[data-bot="${i + 1}"]`)!
+      const labelEl = seatEl.querySelector<HTMLElement>('.seat-label')!
       const handEl = botsRow.querySelector<HTMLElement>(
         `[data-bot-hand="${i + 1}"]`,
       )!
+      const status = seatStatuses[i + 1]!
+      const badge = statusLabelVi(status)
+      labelEl.textContent = badge ? `Bot ${i + 1} · ${badge}` : `Bot ${i + 1}`
+
       handEl.innerHTML = ''
       handEl.className = 'bot-chis'
+      if (status.folded) {
+        handEl.classList.add('is-folded')
+        const foldBadge = document.createElement('div')
+        foldBadge.className = 'fold-badge'
+        foldBadge.textContent = 'Úp bài'
+        handEl.appendChild(foldBadge)
+        continue
+      }
+
+      if (status.specialKind > 0) {
+        handEl.classList.add('is-special')
+        const specialBadge = document.createElement('div')
+        specialBadge.className = 'special-badge'
+        specialBadge.textContent = 'Đặc biệt'
+        handEl.appendChild(specialBadge)
+      }
+
       const arr = arrangements[i]!
       const rows: { tag: string; cards: Card[] }[] = [
         { tag: 'Trước', cards: arr.front },
@@ -192,10 +232,19 @@ export function mountTable(host: HTMLElement): void {
 
   function clearBots(): void {
     for (let i = 1; i <= 3; ++i) {
+      const seatEl = botsRow.querySelector<HTMLElement>(`[data-bot="${i}"]`)!
+      const labelEl = seatEl.querySelector<HTMLElement>('.seat-label')!
+      labelEl.textContent = `Bot ${i}`
       const handEl = botsRow.querySelector<HTMLElement>(`[data-bot-hand="${i}"]`)!
       handEl.innerHTML = ''
       handEl.className = 'bot-hand'
     }
+  }
+
+  function setHumanSeatLabel(status: SeatRoundStatus | null): void {
+    const labelEl = humanSeat.querySelector<HTMLElement>('.seat-label')!
+    const badge = status ? statusLabelVi(status) : undefined
+    labelEl.textContent = badge ? `Bạn · ${badge}` : 'Bạn'
   }
 
   function deal(): void {
@@ -221,10 +270,6 @@ export function mountTable(host: HTMLElement): void {
   function finish(human: Arrangement | 'fold' | 'claim'): void {
     if (!state.hands || state.phase !== 'arrange') return
 
-    if (human !== 'fold' && human !== 'claim') {
-      // already validated arrangement
-    }
-
     const result = playRound({
       level: state.level,
       human,
@@ -237,18 +282,27 @@ export function mountTable(host: HTMLElement): void {
       state.totals[i]! += result.roundScores[i]!
     }
 
+    const humanStatus = result.seatStatuses[0]!
     arrange.setEnabled(false)
+    setHumanSeatLabel(humanStatus)
+
     if (human === 'fold') {
-      // keep tray as-is; show folded status
       setStatus('Bạn đã úp bài. So Át vẫn tính.')
     } else if (human === 'claim') {
-      setStatus('Bạn khai Mậu binh đặc biệt.')
+      if (humanStatus.specialKind > 0) {
+        setStatus('Bạn khai Mậu binh đặc biệt.')
+      } else {
+        setStatus('Không có mậu binh đặc biệt — tính như úp bài.')
+      }
+    } else if (humanStatus.foul) {
+      arrange.applyArrangement(human)
+      setStatus('Binh / xếp sai thứ tự chi — chi tính 0 (như úp bài).')
     } else {
       arrange.applyArrangement(human)
       setStatus('Lật bài — xem điểm bên phải.')
     }
 
-    renderBotReveal(result.botArrangements)
+    renderBotReveal(result.botArrangements, result.seatStatuses)
 
     const names = seatNames()
     scoreboard.renderRound(
@@ -258,6 +312,7 @@ export function mountTable(host: HTMLElement): void {
         soAt: result.soAtScores[i]!,
         total: result.roundScores[i]!,
         cumulative: state.totals[i]!,
+        statusLabel: statusLabelVi(result.seatStatuses[i]!),
       })),
     )
     syncActionButtons()
@@ -268,6 +323,15 @@ export function mountTable(host: HTMLElement): void {
     if (!arr) {
       setStatus('Cần xếp đủ Chi Trước 3 / Giữa 5 / Sau 5.')
       return
+    }
+    if (isFoul(arr.front, arr.middle, arr.back)) {
+      const ok = window.confirm(
+        'Binh — xếp sai thứ tự chi.\nTính như úp bài (chi = 0)?',
+      )
+      if (!ok) {
+        setStatus('Binh / xếp sai thứ tự chi — hãy sửa lại rồi Xong.')
+        return
+      }
     }
     finish(arr)
   }
@@ -287,6 +351,12 @@ export function mountTable(host: HTMLElement): void {
 
   function onClaim(): void {
     if (!LEVELS[state.level].claimAid) return
+    if (!state.hands || state.phase !== 'arrange') return
+    const special = detectSpecial(state.hands[0])
+    if (special.kind === 0) {
+      setStatus('Không có mậu binh đặc biệt — tính như úp bài.')
+      return
+    }
     finish('claim')
   }
 
@@ -297,6 +367,7 @@ export function mountTable(host: HTMLElement): void {
     arrange.clear()
     arrange.root.hidden = true
     clearBots()
+    setHumanSeatLabel(null)
     center.hidden = false
     center.textContent = 'Chọn độ khó rồi nhấn Chia bài.'
     scoreboard.clearRound()

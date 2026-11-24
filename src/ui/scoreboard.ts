@@ -4,6 +4,8 @@ export type SeatScoreRow = {
   soAt: number
   total: number
   cumulative: number
+  /** Úp bài / Đặc biệt / Binh — shown under seat name when set. */
+  statusLabel?: string
 }
 
 export type ScoreboardView = {
@@ -87,15 +89,18 @@ export function createScoreboard(parent: HTMLElement): ScoreboardView {
   function renderRound(rows: SeatScoreRow[]): void {
     roundSection.hidden = false
     roundBody.innerHTML = rows
-      .map(
-        (r) => `
+      .map((r) => {
+        const label = r.statusLabel
+          ? `<div class="seat-status">${r.statusLabel}</div>`
+          : ''
+        return `
       <tr>
-        <td>${r.name}</td>
+        <td>${r.name}${label}</td>
         <td class="${ptsClass(r.chi)}">${formatPts(r.chi)}</td>
         <td class="${ptsClass(r.soAt)}">${formatPts(r.soAt)}</td>
         <td class="${ptsClass(r.total)}">${formatPts(r.total)}</td>
-      </tr>`,
-      )
+      </tr>`
+      })
       .join('')
     renderCumulative(
       rows.map((r) => r.name),
