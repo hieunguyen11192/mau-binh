@@ -266,9 +266,9 @@ export function mountTable(host: HTMLElement): void {
     scoreboard.clearRound()
     scoreboard.renderCumulativeOnly([...seatNames()], state.totals)
     if (LEVELS[state.level].peek) {
-      setStatus('Xếp 3 chi rồi Xong. Click bài bot để xem tạm (peek).')
+      setStatus('Chọn chi → bấm bài xếp vào. Peek: click bài bot.')
     } else {
-      setStatus('Xếp bài vào 3 chi, rồi nhấn Xong.')
+      setStatus('Chọn chi → bấm bài trên tay để xếp, rồi Xong.')
     }
     syncActionButtons()
   }

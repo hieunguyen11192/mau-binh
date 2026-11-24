@@ -34,7 +34,7 @@ export function createGuideSheet(): {
             <li><strong>Chi Sau</strong>: 5 lá</li>
           </ul>
           <p>Thứ tự sức mạnh bắt buộc: <strong>Chi Sau ≥ Chi Giữa ≥ Chi Trước</strong>. Xếp sai gọi là <strong>binh</strong> — ván đó điểm chi = 0 (như úp bài), nhưng vẫn tham gia So Át / Át to.</p>
-          <p>Thao tác: chọn lá trên khay → bấm ô chi để đặt. Có nút <strong>Theo chất</strong> / <strong>Nhỏ → lớn</strong> để sắp bài trên tay. Một số mức độ khó có <strong>Xếp gợi ý</strong>.</p>
+          <p>Thao tác (kiểu Warrior): <strong>bấm chọn chi</strong> → <strong>bấm lần lượt bài trên tay</strong> để xếp vào. Bấm lá trong chi để trả về khay. Chi đầy sẽ tự chuyển sang chi còn chỗ. Có nút <strong>Theo chất</strong> / <strong>Nhỏ → lớn</strong>. Một số mức có <strong>Xếp gợi ý</strong>.</p>
         </section>
 
         <section>

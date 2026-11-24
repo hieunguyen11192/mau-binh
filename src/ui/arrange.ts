@@ -113,6 +113,15 @@ const CHI_CAPACITY: Record<ChiId, number> = {
   back: 5,
 }
 
+const CHI_LABEL: Record<ChiId, string> = {
+  front: 'Chi Trước',
+  middle: 'Chi Giữa',
+  back: 'Chi Sau',
+}
+
+/** Prefer filling strongest chi first (Sau → Giữa → Trước). */
+const CHI_FILL_ORDER: ChiId[] = ['back', 'middle', 'front']
+
 export type ArrangeController = {
   root: HTMLElement
   /** Reset tray from a fresh 13-card hand; clears chis. */
@@ -130,24 +139,25 @@ export type ArrangeController = {
 type Zone = 'tray' | ChiId
 
 /**
- * Human tray + 3 chi slots (Trước 3 / Giữa 5 / Sau 5). Click card to select,
- * click slot (or card in slot) to place / move / return to tray.
+ * Warrior-style arrange: click a chi to target it, then click tray cards to
+ * place. Click a card already in a chi to return it to the tray.
  */
 export function createArrangeController(parent: HTMLElement): ArrangeController {
   const root = document.createElement('div')
   root.className = 'human-zone'
   root.innerHTML = `
+    <p class="arrange-hint" data-hint></p>
     <div class="chi-slots">
-      <div class="chi-slot" data-chi="front">
-        <div class="chi-slot-title">Chi Trước (3)</div>
+      <div class="chi-slot" data-chi="front" role="button" tabindex="0">
+        <div class="chi-slot-title" data-title="front">Chi Trước (0/3)</div>
         <div class="chi-slot-cards" data-cards="front"></div>
       </div>
-      <div class="chi-slot" data-chi="middle">
-        <div class="chi-slot-title">Chi Giữa (5)</div>
+      <div class="chi-slot" data-chi="middle" role="button" tabindex="0">
+        <div class="chi-slot-title" data-title="middle">Chi Giữa (0/5)</div>
         <div class="chi-slot-cards" data-cards="middle"></div>
       </div>
-      <div class="chi-slot" data-chi="back">
-        <div class="chi-slot-title">Chi Sau (5)</div>
+      <div class="chi-slot" data-chi="back" role="button" tabindex="0">
+        <div class="chi-slot-title" data-title="back">Chi Sau (0/5)</div>
         <div class="chi-slot-cards" data-cards="back"></div>
       </div>
     </div>
@@ -168,9 +178,10 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
   let front: Card[] = []
   let middle: Card[] = []
   let back: Card[] = []
-  let selectedKey: string | null = null
+  let activeChi: ChiId | null = null
   let enabled = true
 
+  const hintEl = root.querySelector<HTMLElement>('[data-hint]')!
   const sortSuitBtn = root.querySelector<HTMLButtonElement>('[data-sort="suit"]')!
   const sortRankBtn = root.querySelector<HTMLButtonElement>('[data-sort="rank"]')!
 
@@ -195,87 +206,62 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
     return list.splice(index, 1)[0]!
   }
 
-  function placeInChi(chi: ChiId, card: Card): boolean {
-    const list = zoneCards[chi]()
-    if (list.length >= CHI_CAPACITY[chi]) return false
-    list.push(card)
-    return true
+  function nextOpenChi(prefer?: ChiId | null): ChiId | null {
+    const order = prefer
+      ? [prefer, ...CHI_FILL_ORDER.filter((c) => c !== prefer)]
+      : CHI_FILL_ORDER
+    for (const chi of order) {
+      if (zoneCards[chi]().length < CHI_CAPACITY[chi]) return chi
+    }
+    return null
   }
 
-  function setSelected(key: string | null): void {
-    selectedKey = key
+  function setActiveChi(chi: ChiId | null): void {
+    activeChi = chi
     render()
   }
 
-  function onCardClick(key: string): void {
+  /** Click chi header/slot → select target (toggle off if same & empty click). */
+  function onChiSelect(chi: ChiId): void {
     if (!enabled) return
-    if (selectedKey === key) {
-      setSelected(null)
+    if (activeChi === chi) {
+      setActiveChi(null)
       return
     }
-    if (selectedKey === null) {
-      setSelected(key)
+    if (zoneCards[chi]().length >= CHI_CAPACITY[chi]) {
+      // Full chi: still allow select so user can see it; placing won't add
+      setActiveChi(chi)
       return
     }
-    // Move selected onto the zone of the clicked card (swap if same chi capacity ok)
-    const from = findCard(selectedKey)
-    const to = findCard(key)
-    if (!from || !to) {
-      setSelected(key)
-      return
-    }
-    if (from.zone === to.zone) {
-      setSelected(key)
-      return
-    }
-    // If target is tray: move selected to tray
-    if (to.zone === 'tray') {
-      const card = removeFromZone(from.zone, from.index)
-      tray.push(card)
-      setSelected(null)
-      return
-    }
-    // Target is a chi: try move selected into that chi (replace click target back to tray if full)
-    const chi = to.zone as ChiId
-    const list = zoneCards[chi]()
-    if (list.length < CHI_CAPACITY[chi]) {
-      const card = removeFromZone(from.zone, from.index)
-      list.push(card)
-      setSelected(null)
-      return
-    }
-    // Full: swap selected with clicked
-    const a = removeFromZone(from.zone, from.index)
-    const refreshed = findCard(key)
-    if (!refreshed) {
-      // put back
-      zoneCards[from.zone]().splice(from.index, 0, a)
-      setSelected(null)
-      return
-    }
-    const b = removeFromZone(refreshed.zone, refreshed.index)
-    zoneCards[refreshed.zone]().splice(refreshed.index, 0, a)
-    if (from.zone === 'tray') {
-      tray.push(b)
-    } else {
-      placeInChi(from.zone as ChiId, b)
-    }
-    setSelected(null)
+    setActiveChi(chi)
   }
 
-  function onSlotClick(chi: ChiId): void {
-    if (!enabled || selectedKey === null) return
-    const from = findCard(selectedKey)
-    if (!from) return
-    if (from.zone === chi) {
-      setSelected(null)
+  /** Tray card → place into active chi. Chi card → return to tray. */
+  function onCardClick(key: string): void {
+    if (!enabled) return
+    const found = findCard(key)
+    if (!found) return
+
+    // Card in a chi → return to tray; keep/focus that chi for quick refill
+    if (found.zone !== 'tray') {
+      const card = removeFromZone(found.zone, found.index)
+      tray.push(card)
+      if (activeChi === null) activeChi = found.zone as ChiId
+      render()
       return
     }
+
+    const chi =
+      activeChi !== null && zoneCards[activeChi]().length < CHI_CAPACITY[activeChi]
+        ? activeChi
+        : nextOpenChi(activeChi)
+    if (!chi) return
+
+    const card = removeFromZone('tray', found.index)
     const list = zoneCards[chi]()
-    if (list.length >= CHI_CAPACITY[chi]) return
-    const card = removeFromZone(from.zone, from.index)
     list.push(card)
-    setSelected(null)
+    activeChi = list.length >= CHI_CAPACITY[chi] ? nextOpenChi(chi) : chi
+    render()
   }
 
   function renderZone(zone: Zone, container: HTMLElement): void {
@@ -284,7 +270,6 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
       const key = cardKey(card)
       container.appendChild(
         createFaceCard(card, {
-          selected: selectedKey === key,
           onClick: () => onCardClick(key),
         }),
       )
@@ -292,13 +277,11 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
   }
 
   function compareBySuit(a: Card, b: Card): number {
-    // Group by suit ♠→♣→♦→♥, then rank small→large within suit
     if (a.suit !== b.suit) return a.suit - b.suit
     return a.rank - b.rank
   }
 
   function compareByRank(a: Card, b: Card): number {
-    // Rank 2→A, then suit as tiebreak
     if (a.rank !== b.rank) return a.rank - b.rank
     return a.suit - b.suit
   }
@@ -306,8 +289,21 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
   function sortTray(mode: 'suit' | 'rank'): void {
     if (!enabled || tray.length === 0) return
     tray = tray.slice().sort(mode === 'suit' ? compareBySuit : compareByRank)
-    selectedKey = null
     render()
+  }
+
+  function hintText(): string {
+    if (!enabled) return ''
+    if (tray.length === 0) return 'Đủ 13 lá — nhấn Xong khi chắc chắn.'
+    if (activeChi === null) {
+      return 'Bấm chọn một chi, rồi bấm bài trên tay để xếp vào.'
+    }
+    const n = zoneCards[activeChi]().length
+    const cap = CHI_CAPACITY[activeChi]
+    if (n >= cap) {
+      return `${CHI_LABEL[activeChi]} đã đủ ${cap} lá — chọn chi khác hoặc trả bài về khay.`
+    }
+    return `Đang xếp ${CHI_LABEL[activeChi]} (${n}/${cap}) — bấm bài trên tay để thêm.`
   }
 
   function render(): void {
@@ -318,23 +314,39 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
 
     for (const chi of ['front', 'middle', 'back'] as ChiId[]) {
       const slot = root.querySelector<HTMLElement>(`[data-chi="${chi}"]`)!
-      slot.classList.toggle('drop-target', selectedKey !== null && enabled)
+      const n = zoneCards[chi]().length
+      const cap = CHI_CAPACITY[chi]
+      slot.classList.toggle('active', activeChi === chi && enabled)
+      slot.classList.toggle('full', n >= cap)
+      const title = root.querySelector<HTMLElement>(`[data-title="${chi}"]`)!
+      title.textContent = `${CHI_LABEL[chi]} (${n}/${cap})`
     }
+
+    hintEl.textContent = hintText()
 
     const canSort = enabled && tray.length > 0
     sortSuitBtn.disabled = !canSort
     sortRankBtn.disabled = !canSort
+
+    root.querySelectorAll<HTMLButtonElement>('.card.face').forEach((el) => {
+      el.disabled = !enabled
+    })
   }
 
   sortSuitBtn.addEventListener('click', () => sortTray('suit'))
   sortRankBtn.addEventListener('click', () => sortTray('rank'))
 
-  // Slot background click (not on a card) places selected
   for (const chi of ['front', 'middle', 'back'] as ChiId[]) {
     const slot = root.querySelector<HTMLElement>(`[data-chi="${chi}"]`)!
     slot.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('.card')) return
-      onSlotClick(chi)
+      onChiSelect(chi)
+    })
+    slot.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onChiSelect(chi)
+      }
     })
   }
 
@@ -343,7 +355,7 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
     front = []
     middle = []
     back = []
-    selectedKey = null
+    activeChi = 'back'
     render()
   }
 
@@ -352,7 +364,7 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
     middle = arr.middle.slice()
     back = arr.back.slice()
     tray = []
-    selectedKey = null
+    activeChi = null
     render()
   }
 
@@ -374,9 +386,6 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
 
   function setEnabled(on: boolean): void {
     enabled = on
-    root.querySelectorAll<HTMLButtonElement>('.card.face').forEach((el) => {
-      el.disabled = !on
-    })
     render()
   }
 
@@ -385,7 +394,7 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
     front = []
     middle = []
     back = []
-    selectedKey = null
+    activeChi = null
     render()
   }
 

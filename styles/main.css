@@ -287,6 +287,13 @@ body {
   }
 }
 
+.arrange-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+  min-height: 1.2em;
+}
+
 .chi-slot {
   background: var(--slot);
   border: 2px dashed var(--panel-border);
@@ -294,13 +301,28 @@ body {
   padding: 0.5rem;
   min-height: 5.5rem;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
-.chi-slot:hover,
-.chi-slot.drop-target {
+.chi-slot:hover {
   border-color: var(--accent);
   background: var(--slot-active);
+}
+
+.chi-slot.active {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--slot-active);
+  box-shadow: 0 0 0 2px rgba(232, 197, 71, 0.35);
+}
+
+.chi-slot.active .chi-slot-title {
+  color: var(--accent);
+}
+
+.chi-slot.full:not(.active) {
+  border-style: solid;
+  opacity: 0.92;
 }
 
 .chi-slot-title {
