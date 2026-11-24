@@ -8,3 +8,10 @@ export type Card = {
   rank: Rank
   suit: Suit
 }
+
+/** 3 + 5 + 5 chi layout */
+export type Arrangement = {
+  front: Card[]
+  middle: Card[]
+  back: Card[]
+}
