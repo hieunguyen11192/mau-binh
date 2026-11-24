@@ -56,4 +56,17 @@ describe('optimizeHand', () => {
     assertArrangement(hand, a)
     assertArrangement(hand, b)
   })
+
+  it('throws when no legal arrangement is possible (wrong size hand)', () => {
+    expect(() => optimizeHand([], 0)).toThrow(/13 cards/)
+  })
+
+  it('always finds ≥1 legal arrangement for dealt 13-card hands', () => {
+    for (let i = 0; i < 30; i++) {
+      const rng = mulberry32(5000 + i)
+      const [hand] = dealHands(rng)
+      const arr = optimizeHand(hand, 0)
+      assertArrangement(hand, arr)
+    }
+  })
 })

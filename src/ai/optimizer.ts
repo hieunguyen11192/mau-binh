@@ -185,13 +185,7 @@ export function optimizeHand(
     candidates = searchCandidates(sorted, false)
   }
   if (candidates.length === 0) {
-    // Last resort: keep sorted order as back/middle/front chunks (may still
-    // be foul for pathological hands — search above should have found one).
-    return {
-      front: sorted.slice(0, 3),
-      middle: sorted.slice(3, 8),
-      back: sorted.slice(8, 13),
-    }
+    throw new Error('optimizeHand: no legal non-foul arrangement found')
   }
 
   // Best → worst
