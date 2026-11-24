@@ -152,6 +152,17 @@ function expectedScore(
   return Math.floor(100 * (win3 + win2 + win1 + win0))
 }
 
+/**
+ * Expected chi points for an arrangement (same units as FOLD_POINTS / shouldBotFold).
+ * Divides the ×100 13-warriors expected_points scale back to raw points.
+ */
+export function estimateArrangementPoints(arr: Arrangement): number {
+  const front = evaluateChi(arr.front, 'front')
+  const middle = evaluateChi(arr.middle, 'middle')
+  const back = evaluateChi(arr.back, 'back')
+  return expectedScore(front, middle, back) / 100
+}
+
 function pickCards(hand: Card[], indices: number[]): Card[] {
   return indices.map((i) => hand[i]!)
 }
