@@ -63,13 +63,12 @@ export function createGuideSheet(): {
             <li>Nhóm còn lại đều <strong>0 Át</strong> → <strong>So Hai</strong> cùng nguyên tắc: <strong>đếm số Hai trước</strong> (2 Hai hơn 1 Hai), hòa số mới so chất Hai mạnh nhất (cùng thứ tự chất).</li>
             <li>Vẫn hòa: chia đều điểm các hạng bị chiếm.</li>
           </ol>
-          <p><em>Lưu ý:</em> So Át (ưu tiên số lượng) khác <strong>Át to nhất</strong> ở mục dưới (chỉ so Át mạnh nhất trên bàn).</p>
         </section>
 
         <section>
           <h3>5. Át to nhất (hũ 20 điểm)</h3>
           <p>Mỗi nhà bỏ thêm <strong>5 điểm</strong>/ván → hũ <strong>20</strong>.</p>
-          <p>Ai cầm <strong>Át mạnh nhất</strong> trên bàn (♥ &gt; ♦ &gt; ♣ &gt; ♠) ăn cả hũ → net <strong>+15</strong>; ba nhà kia <strong>−5</strong>.</p>
+          <p>Xếp hạng <strong>giống So Át</strong>: <strong>đếm số Át trước</strong> (2 Át hơn 1 Át, kể cả Át♥), cùng số mới so chất Át mạnh nhất (♥ &gt; ♦ &gt; ♣ &gt; ♠). Người nhất ăn cả hũ → net <strong>+15</strong>; ba nhà kia <strong>−5</strong>. Hòa nhất → chia đều hũ.</p>
           <p>Không ai có Át: chia đều hũ (net 0 mỗi nhà).</p>
         </section>
 
@@ -99,7 +98,7 @@ export function createGuideSheet(): {
           <h3>8. Mẹo nhanh</h3>
           <ul>
             <li>Ưu tiên Chi Sau mạnh, tránh binh.</li>
-            <li>Số Át ảnh hưởng lớn tới So Át; Át cơ (♥) quyết định Át to nhất.</li>
+            <li>Số Át quyết định cả So Át và Át to nhất; chất chỉ so khi cùng số Át.</li>
             <li>Úp bài khi tay quá yếu (mức Già/Át) — vẫn có thể thắng So Át / Át to.</li>
           </ul>
         </section>

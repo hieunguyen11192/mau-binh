@@ -76,9 +76,10 @@ export function scoreSoAt(hands: Card[][]): number[] {
 }
 
 /**
- * Át to nhất: each seat antes {@link AT_LON_ANTE} (pot 20). Seat with the
- * strongest Ace (♥ > ♦ > ♣ > ♠) takes the pot. No Aces → pot split evenly (net 0).
- * Returned values are payout − ante (zero-sum).
+ * Át to nhất: each seat antes {@link AT_LON_ANTE} (pot 20). Same Ace ranking
+ * as So Át — aceCount first (2 Aces beat 1 Ace♥), then strongest Ace suit
+ * (♥ > ♦ > ♣ > ♠). Winner takes the pot; ties split. No Aces → pot split
+ * evenly (net 0). Returned values are payout − ante (zero-sum).
  */
 export function scoreAtLonhat(hands: Card[][]): number[] {
   const n = hands.length
@@ -95,11 +96,20 @@ export function scoreAtLonhat(hands: Card[][]): number[] {
     for (let i = 0; i < n; i++) payouts[i] = share
   } else {
     let best = withAces[0]!
+    const winners = [best]
     for (let k = 1; k < withAces.length; k++) {
       const cur = withAces[k]!
-      if (cur.m.aceSuit > best.m.aceSuit) best = cur
+      const cmp = compareMetrics(cur.m, best.m)
+      if (cmp > 0) {
+        best = cur
+        winners.length = 0
+        winners.push(cur)
+      } else if (cmp === 0) {
+        winners.push(cur)
+      }
     }
-    payouts[best.i] = pot
+    const share = pot / winners.length
+    for (const w of winners) payouts[w.i] = share
   }
 
   return payouts.map((p) => p - AT_LON_ANTE)

@@ -27,7 +27,7 @@ export type PlayRoundResult = {
   chiScores: number[]
   /** So Át pot net (ante 15, payout 30/20/10/0). */
   soAtScores: number[]
-  /** Át to nhất pot net (ante 5, strongest Ace takes 20). */
+  /** Át to nhất pot net (ante 5; Ace count then suit takes 20). */
   atLonScores: number[]
   roundScores: number[]
   botArrangements: Arrangement[]

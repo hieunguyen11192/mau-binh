@@ -64,7 +64,7 @@ describe('playRound', () => {
   })
 
   it('human fold → chi 0 but So Át / Át to still score', () => {
-    // seat0 Nhất So Át (3 Aces ♠♣♦); seat1 holds Ace♥ → Át to nhất
+    // seat0 Nhất So Át + Át to (3 Aces ♠♣♦ beats Ace♥ by count)
     const hands: [Card[], Card[], Card[], Card[]] = [
       pad([c(12, 0), c(12, 1), c(12, 2)], 3),
       pad([c(12, 3)], 1),
@@ -72,8 +72,8 @@ describe('playRound', () => {
       pad([c(0, 2)], 4),
     ]
     expect(scoreSoAt(hands)[0]).toBe(15) // 30 − 15 ante
-    expect(scoreAtLonhat(hands)[0]).toBe(-5) // Ace♥ at seat1
-    expect(scoreAtLonhat(hands)[1]).toBe(15)
+    expect(scoreAtLonhat(hands)[0]).toBe(15) // 3 Aces → Át to
+    expect(scoreAtLonhat(hands)[1]).toBe(-5)
 
     const result = playRound({
       level: 'jo',
@@ -84,8 +84,8 @@ describe('playRound', () => {
 
     expect(result.chiScores[0]).toBe(0)
     expect(result.soAtScores[0]).toBe(15)
-    expect(result.atLonScores[0]).toBe(-5)
-    expect(result.roundScores[0]).toBe(10)
+    expect(result.atLonScores[0]).toBe(15)
+    expect(result.roundScores[0]).toBe(30)
     expect(result.seatStatuses[0]).toEqual({
       folded: true,
       specialKind: 0,

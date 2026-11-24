@@ -100,15 +100,25 @@ describe('at-lonhat pot', () => {
     expect(AT_LON_ANTE).toBe(5)
   })
 
-  it('strongest Ace takes pot 20 → nets +15 / −5 / −5 / −5', () => {
+  it('same Ace count → strongest suit takes pot 20 → nets +15 / −5 / −5 / −5', () => {
     const hands = [
       hand(c(12, 0)), // Ace♠
-      hand(c(12, 3)), // Ace♥ → to nhất
+      hand(c(12, 3)), // Ace♥ → to nhất (cùng 1 Át, chất mạnh hơn)
       hand(c(12, 1)), // Ace♣
       hand(), // no Ace
     ]
     expect(scoreAtLonhat(hands)).toEqual([-5, 15, -5, -5])
     expect(scoreAtLonhat(hands).reduce((a, b) => a + b, 0)).toBe(0)
+  })
+
+  it('2 Aces beat 1 Ace♥ — count before suit', () => {
+    const hands = [
+      hand(c(12, 0), c(12, 1)), // 2 Aces ♠♣ → to nhất
+      hand(c(12, 3)), // 1 Ace♥
+      hand(),
+      hand(),
+    ]
+    expect(scoreAtLonhat(hands)).toEqual([15, -5, -5, -5])
   })
 
   it('no Aces → pot split, each net 0', () => {
