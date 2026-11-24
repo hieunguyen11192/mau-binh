@@ -16,6 +16,7 @@ import {
   createPeekToggleCard,
   type ArrangeController,
 } from './arrange'
+import { createGuideSheet } from './guide'
 import {
   createScoreboard,
   scoreboardActionsHost,
@@ -68,6 +69,7 @@ export function mountTable(host: HTMLElement): void {
       </select>
     </label>
     <button type="button" class="btn btn-primary" data-deal>Chia bài</button>
+    <button type="button" class="btn" data-guide>Hướng dẫn</button>
   `
 
   const actions = document.createElement('div')
@@ -113,8 +115,12 @@ export function mountTable(host: HTMLElement): void {
   game.prepend(mainCol)
   host.appendChild(game)
 
+  const guide = createGuideSheet()
+  host.appendChild(guide.root)
+
   const levelSelect = toolbar.querySelector<HTMLSelectElement>('[data-level]')!
   const dealBtn = toolbar.querySelector<HTMLButtonElement>('[data-deal]')!
+  const guideBtn = toolbar.querySelector<HTMLButtonElement>('[data-guide]')!
   const autoBtn = actions.querySelector<HTMLButtonElement>('[data-auto]')!
   const doneBtn = actions.querySelector<HTMLButtonElement>('[data-done]')!
   const foldBtn = actions.querySelector<HTMLButtonElement>('[data-fold]')!
@@ -378,6 +384,7 @@ export function mountTable(host: HTMLElement): void {
   }
 
   dealBtn.addEventListener('click', deal)
+  guideBtn.addEventListener('click', () => guide.open())
   autoBtn.addEventListener('click', onAuto)
   doneBtn.addEventListener('click', onDone)
   foldBtn.addEventListener('click', onFold)

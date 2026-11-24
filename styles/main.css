@@ -561,3 +561,130 @@ body {
   padding: 3rem 1rem;
   font-size: 1rem;
 }
+
+/* ——— Guide sheet ——— */
+
+body.guide-open {
+  overflow: hidden;
+}
+
+.guide-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+}
+
+.guide-overlay[hidden] {
+  display: none !important;
+}
+
+.guide-sheet {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  margin: auto 0;
+}
+
+.guide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.guide-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--accent);
+}
+
+.guide-close {
+  padding: 0.25rem 0.55rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.guide-body {
+  padding: 1rem 1.25rem 1.5rem;
+  overflow-y: auto;
+  color: var(--ink);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.guide-body section {
+  margin-bottom: 1.25rem;
+}
+
+.guide-body h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.guide-body p,
+.guide-body ul,
+.guide-body ol {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+}
+
+.guide-body strong {
+  color: var(--ink);
+}
+
+.guide-body ul,
+.guide-body ol {
+  padding-left: 1.25rem;
+}
+
+.guide-body li {
+  margin-bottom: 0.25rem;
+}
+
+.guide-body code {
+  font-size: 0.85em;
+  color: var(--accent);
+}
+
+.guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.guide-table th,
+.guide-table td {
+  border: 1px solid var(--panel-border);
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+}
+
+.guide-table th {
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.guide-footer {
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
