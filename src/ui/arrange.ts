@@ -45,11 +45,64 @@ export function createFaceCard(
   return el
 }
 
-export function createBackCard(compact = false): HTMLDivElement {
+export function createBackCard(
+  compact = false,
+  opts: { peekable?: boolean; onClick?: () => void } = {},
+): HTMLElement {
+  if (opts.onClick || opts.peekable) {
+    const el = document.createElement('button')
+    el.type = 'button'
+    el.className = `card back${compact ? ' compact' : ''}${opts.peekable ? ' peekable' : ''}`
+    el.setAttribute('aria-label', opts.peekable ? 'Xem (peek)' : 'Úp')
+    if (opts.onClick) el.addEventListener('click', opts.onClick)
+    return el
+  }
   const el = document.createElement('div')
   el.className = `card back${compact ? ' compact' : ''}`
   el.setAttribute('aria-label', 'Úp')
   return el
+}
+
+/**
+ * Face-down bot card that toggles face-up on click (temporary peek).
+ * Click again to hide. Used when LEVELS.peek is true.
+ */
+export function createPeekToggleCard(
+  card: Card,
+  compact = false,
+): HTMLElement {
+  let revealed = false
+  const host = document.createElement('span')
+  host.className = 'peek-host'
+
+  function paint(): void {
+    host.innerHTML = ''
+    if (revealed) {
+      const face = createFaceCard(card, {
+        compact,
+        onClick: () => {
+          revealed = false
+          paint()
+        },
+      })
+      face.classList.add('peek-revealed')
+      face.title = 'Ẩn lại'
+      host.appendChild(face)
+    } else {
+      host.appendChild(
+        createBackCard(compact, {
+          peekable: true,
+          onClick: () => {
+            revealed = true
+            paint()
+          },
+        }),
+      )
+    }
+  }
+
+  paint()
+  return host
 }
 
 export type ChiId = 'front' | 'middle' | 'back'

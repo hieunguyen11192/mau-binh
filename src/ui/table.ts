@@ -7,6 +7,7 @@ import {
   createArrangeController,
   createBackCard,
   createFaceCard,
+  createPeekToggleCard,
   type ArrangeController,
 } from './arrange'
 import {
@@ -142,12 +143,18 @@ export function mountTable(host: HTMLElement): void {
   }
 
   function renderBotsFaceDown(): void {
+    const canPeek = LEVELS[state.level].peek
     for (let i = 1; i <= 3; ++i) {
       const handEl = botsRow.querySelector<HTMLElement>(`[data-bot-hand="${i}"]`)!
       handEl.innerHTML = ''
       handEl.className = 'bot-hand'
+      const botHand = state.hands![i]!
       for (let c = 0; c < 13; ++c) {
-        handEl.appendChild(createBackCard(true))
+        if (canPeek) {
+          handEl.appendChild(createPeekToggleCard(botHand[c]!, true))
+        } else {
+          handEl.appendChild(createBackCard(true))
+        }
       }
     }
   }
@@ -203,7 +210,11 @@ export function mountTable(host: HTMLElement): void {
     renderBotsFaceDown()
     scoreboard.clearRound()
     scoreboard.renderCumulativeOnly([...seatNames()], state.totals)
-    setStatus('Xếp bài vào 3 chi, rồi nhấn Xong.')
+    if (LEVELS[state.level].peek) {
+      setStatus('Xếp 3 chi rồi Xong. Click bài bot để xem tạm (peek).')
+    } else {
+      setStatus('Xếp bài vào 3 chi, rồi nhấn Xong.')
+    }
     syncActionButtons()
   }
 

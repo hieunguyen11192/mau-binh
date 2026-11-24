@@ -384,6 +384,23 @@ body {
   transform: none;
 }
 
+.card.back.peekable {
+  cursor: pointer;
+}
+
+.card.back.peekable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.card.face.peek-revealed {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.peek-host {
+  display: inline-flex;
+}
+
 .card.compact {
   width: 2.1rem;
   height: 2.9rem;
