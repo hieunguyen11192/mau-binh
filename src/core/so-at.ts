@@ -2,7 +2,7 @@ import { suitStrength } from './cards'
 import type { Card } from './types'
 
 /** Nhất / Nhì / Ba / Bét — additive So Át bonuses */
-export const SO_AT_POINTS = [30, 20, 10, 0] as const
+export const SO_AT_POINTS: number[] = [30, 20, 10, 0]
 
 const ACE = 12
 const TWO = 0
