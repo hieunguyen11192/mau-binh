@@ -55,4 +55,28 @@ describe('hand evaluation', () => {
 
     expect(isFoul(front, middle, back)).toBe(false)
   })
+
+  it('foul: Ace-high junk front vs low junk middle (feature-wise, not length)', () => {
+    const front: Card[] = [c(12, 0), c(11, 1), c(10, 2)] // A,K,Q
+    const middle: Card[] = [c(5, 0), c(3, 1), c(2, 2), c(1, 0), c(0, 1)] // 7,5,4,3,2
+    const back: Card[] = [c(12, 1), c(12, 2), c(4, 0), c(6, 1), c(8, 2)] // pair aces
+
+    expect(isFoul(front, middle, back)).toBe(true)
+  })
+
+  it('foul: pair Aces front vs pair Twos middle', () => {
+    const front: Card[] = [c(12, 0), c(12, 1), c(5, 2)]
+    const middle: Card[] = [c(0, 0), c(0, 1), c(3, 2), c(5, 0), c(7, 1)]
+    const back: Card[] = [c(11, 0), c(11, 1), c(11, 2), c(2, 0), c(4, 1)] // triple kings
+
+    expect(isFoul(front, middle, back)).toBe(true)
+  })
+
+  it('not foul when equal high-card prefix (stops at min length)', () => {
+    const front: Card[] = [c(12, 0), c(11, 1), c(10, 2)] // A,K,Q
+    const middle: Card[] = [c(12, 1), c(11, 2), c(10, 0), c(3, 1), c(0, 2)] // A,K,Q,5,2
+    const back: Card[] = [c(9, 0), c(9, 1), c(2, 2), c(4, 0), c(6, 1)] // pair jacks > junk
+
+    expect(isFoul(front, middle, back)).toBe(false)
+  })
 })

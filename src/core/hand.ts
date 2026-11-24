@@ -5,7 +5,15 @@ export type Chi = 'front' | 'middle' | 'back'
 /** Junk=0 … RoyalFlush=9 — same order as 13-warriors */
 export type Pattern = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
-export type ChiEval = { pattern: Pattern; strength: number }
+type Feature = { type: number; rank: Rank }
+
+export type ChiEval = {
+  pattern: Pattern
+  /** Primary feature rank (features[0].rank) — not used for total order */
+  strength: number
+  /** Feature list for is_smaller_than-style compare */
+  features: Feature[]
+}
 
 const Junk = 0
 const Pair = 1
@@ -28,8 +36,6 @@ export const PATTERN_POINTS: number[][] = [
   [1, 1, 1, 1, 1, 1, 2, 8, 10, 20],
   [1, 1, 1, 1, 1, 1, 1, 4, 5, 10],
 ]
-
-type Feature = { type: number; rank: Rank }
 
 function extractFeatures(cards: Card[]): Feature[] {
   const sorted = cards.slice().sort((a, b) => a.rank - b.rank)
@@ -109,27 +115,33 @@ function extractFeatures(cards: Card[]): Feature[] {
   return features
 }
 
-/** Pack feature ranks into a single strength — total order matches reference is_smaller_than kickers */
-function strengthFromFeatures(features: Feature[]): number {
-  let s = 0
-  for (const f of features) {
-    s = s * 13 + f.rank
+/**
+ * Port of 13-warriors WaveEvaluator.is_smaller_than / compare:
+ * walk features pairwise by type then rank up to min length;
+ * do NOT favor longer feature lists.
+ * >0 if a stronger, <0 if b stronger, 0 if equal through min length.
+ */
+function compareFeatures(a: Feature[], b: Feature[]): number {
+  const minLen = Math.min(a.length, b.length)
+  for (let i = 0; i < minLen; ++i) {
+    if (a[i].type !== b[i].type) return a[i].type - b[i].type
+    if (a[i].rank !== b[i].rank) return a[i].rank - b[i].rank
   }
-  return s
+  return 0
 }
 
 export function evaluateChi(cards: Card[], _chi: Chi): ChiEval {
   const features = extractFeatures(cards)
   return {
     pattern: features[0].type as Pattern,
-    strength: strengthFromFeatures(features),
+    strength: features[0].rank,
+    features,
   }
 }
 
-/** >0 if a stronger than b (pattern first, then strength) */
+/** >0 if a stronger than b (feature-wise, same as is_smaller_than) */
 export function compareChi(a: ChiEval, b: ChiEval): number {
-  if (a.pattern !== b.pattern) return a.pattern - b.pattern
-  return a.strength - b.strength
+  return compareFeatures(a.features, b.features)
 }
 
 /** true if front > middle or middle > back */
