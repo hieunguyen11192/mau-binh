@@ -152,7 +152,13 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
       </div>
     </div>
     <div class="tray">
-      <div class="tray-title">Bài trên tay</div>
+      <div class="tray-header">
+        <div class="tray-title">Bài trên tay</div>
+        <div class="tray-sort">
+          <button type="button" class="btn btn-sort" data-sort="suit" title="Nhóm theo chất">Theo chất</button>
+          <button type="button" class="btn btn-sort" data-sort="rank" title="Từ nhỏ đến lớn">Nhỏ → lớn</button>
+        </div>
+      </div>
       <div class="tray-cards" data-cards="tray"></div>
     </div>
   `
@@ -164,6 +170,9 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
   let back: Card[] = []
   let selectedKey: string | null = null
   let enabled = true
+
+  const sortSuitBtn = root.querySelector<HTMLButtonElement>('[data-sort="suit"]')!
+  const sortRankBtn = root.querySelector<HTMLButtonElement>('[data-sort="rank"]')!
 
   const zoneCards: Record<Zone, () => Card[]> = {
     tray: () => tray,
@@ -282,6 +291,25 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
     }
   }
 
+  function compareBySuit(a: Card, b: Card): number {
+    // Group by suit ♠→♣→♦→♥, then rank small→large within suit
+    if (a.suit !== b.suit) return a.suit - b.suit
+    return a.rank - b.rank
+  }
+
+  function compareByRank(a: Card, b: Card): number {
+    // Rank 2→A, then suit as tiebreak
+    if (a.rank !== b.rank) return a.rank - b.rank
+    return a.suit - b.suit
+  }
+
+  function sortTray(mode: 'suit' | 'rank'): void {
+    if (!enabled || tray.length === 0) return
+    tray = tray.slice().sort(mode === 'suit' ? compareBySuit : compareByRank)
+    selectedKey = null
+    render()
+  }
+
   function render(): void {
     renderZone('tray', root.querySelector('[data-cards="tray"]')!)
     renderZone('front', root.querySelector('[data-cards="front"]')!)
@@ -292,7 +320,14 @@ export function createArrangeController(parent: HTMLElement): ArrangeController 
       const slot = root.querySelector<HTMLElement>(`[data-chi="${chi}"]`)!
       slot.classList.toggle('drop-target', selectedKey !== null && enabled)
     }
+
+    const canSort = enabled && tray.length > 0
+    sortSuitBtn.disabled = !canSort
+    sortRankBtn.disabled = !canSort
   }
+
+  sortSuitBtn.addEventListener('click', () => sortTray('suit'))
+  sortRankBtn.addEventListener('click', () => sortTray('rank'))
 
   // Slot background click (not on a card) places selected
   for (const chi of ['front', 'middle', 'back'] as ChiId[]) {

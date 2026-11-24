@@ -323,11 +323,43 @@ body {
   padding: 0.65rem;
 }
 
+.tray-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
 .tray-title {
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
-  margin-bottom: 0.4rem;
+}
+
+.tray-sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.btn-sort {
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+}
+
+.btn-sort:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.btn-sort:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .tray-cards {
