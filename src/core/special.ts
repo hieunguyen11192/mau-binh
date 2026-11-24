@@ -14,6 +14,18 @@ const Ace = 12 as Rank
 /** None, ThreeStraights, ThreeFlushes, SixPairs, Dragon — 13-warriors */
 export const SPECIAL_POINTS = [0, 6, 6, 6, 13] as const
 
+/** Claimable kinds in UI order (strongest first). */
+export const CLAIMABLE_KINDS: SpecialKind[] = [4, 3, 2, 1]
+
+/** Vietnamese labels for scoreboard / claim buttons. */
+export const SPECIAL_NAMES_VI: Record<SpecialKind, string> = {
+  0: '',
+  1: 'Ba Sảnh',
+  2: 'Ba Thùng',
+  3: 'Sáu Đôi',
+  4: 'Sảnh Rồng',
+}
+
 export type SpecialResult = {
   kind: SpecialKind
   points: number

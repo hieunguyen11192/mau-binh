@@ -147,6 +147,48 @@ body {
   color: #d8c0ff;
 }
 
+.btn-special:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-special.available {
+  opacity: 1;
+  background: #5a3a8a;
+  border-color: #c9a0ff;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgba(201, 160, 255, 0.45);
+  animation: claim-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes claim-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(201, 160, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(201, 160, 255, 0.65);
+  }
+}
+
+.claim-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.claim-group[hidden] {
+  display: none !important;
+}
+
+.claim-group-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-right: 0.15rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

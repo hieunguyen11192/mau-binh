@@ -40,7 +40,14 @@ export function createGuideSheet(): {
         <section>
           <h3>3. Điểm so chi</h3>
           <p>Sau khi cả bàn khóa bài, mỗi cặp người chơi so lần lượt 3 chi. Ai mạnh hơn nhận điểm theo loại bài (đôi, sảnh, thùng, cù lũ, tứ quý…); ai thua trừ điểm tương ứng.</p>
-          <p>Thắng cả 3 chi trước một đối thủ có thể được nhân điểm (sập). Có thể khai <strong>Mậu binh đặc biệt</strong> (rồng, sáu đôi, ba thùng, ba sảnh…) ở mức độ khó cho phép — khi đó không so chi thường mà tính điểm đặc biệt.</p>
+          <p>Thắng cả 3 chi trước một đối thủ có thể được nhân điểm (sập). Ở mức có <strong>Khai</strong>, nút sáng khi bài đủ đặc biệt:</p>
+          <ul>
+            <li><strong>Sảnh Rồng</strong> — 13 lá liên tiếp (+13 mỗi nhà)</li>
+            <li><strong>Sáu Đôi</strong> — 6 đôi (+6 mỗi nhà)</li>
+            <li><strong>Ba Thùng</strong> — mỗi chi một thùng (+6)</li>
+            <li><strong>Ba Sảnh</strong> — mỗi chi một sảnh (+6)</li>
+          </ul>
+          <p>Khai đặc biệt thì không so chi thường. Mức Át ẩn nút khai (phải tự nhận biết).</p>
           <p><strong>Úp bài</strong>: bỏ so chi (điểm chi = 0), vẫn tính So Át / Át to.</p>
         </section>
 

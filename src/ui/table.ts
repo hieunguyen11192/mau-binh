@@ -2,7 +2,13 @@ import { optimizeHand } from '../ai/optimizer'
 import { dealHands } from '../core/deal'
 import { isFoul } from '../core/hand'
 import { LEVELS, type LevelId } from '../core/levels'
-import { detectSpecial } from '../core/special'
+import {
+  CLAIMABLE_KINDS,
+  SPECIAL_NAMES_VI,
+  SPECIAL_POINTS,
+  detectSpecial,
+  type SpecialKind,
+} from '../core/special'
 import type { Arrangement, Card } from '../core/types'
 import {
   playRound,
@@ -27,7 +33,9 @@ import {
 /** VI label for scoreboard / seat badge from round outcome. */
 function statusLabelVi(s: SeatRoundStatus): string | undefined {
   if (s.foul) return 'Binh'
-  if (s.specialKind > 0) return 'Đặc biệt'
+  if (s.specialKind > 0) {
+    return SPECIAL_NAMES_VI[s.specialKind as SpecialKind] || 'Đặc biệt'
+  }
   if (s.folded) return 'Úp bài'
   return undefined
 }
@@ -79,7 +87,13 @@ export function mountTable(host: HTMLElement): void {
     <button type="button" class="btn btn-warn" data-auto hidden>Xếp gợi ý</button>
     <button type="button" class="btn btn-primary" data-done>Xong</button>
     <button type="button" class="btn btn-danger" data-fold hidden>Úp bài</button>
-    <button type="button" class="btn btn-special" data-claim hidden>Mậu binh đặc biệt</button>
+    <div class="claim-group" data-claim-group hidden>
+      <span class="claim-group-label">Khai:</span>
+      ${CLAIMABLE_KINDS.map(
+        (k) =>
+          `<button type="button" class="btn btn-special" data-claim="${k}" disabled>${SPECIAL_NAMES_VI[k]} (+${SPECIAL_POINTS[k]})</button>`,
+      ).join('')}
+    </div>
     <span class="status-msg" data-status></span>
   `
 
@@ -124,7 +138,10 @@ export function mountTable(host: HTMLElement): void {
   const autoBtn = actions.querySelector<HTMLButtonElement>('[data-auto]')!
   const doneBtn = actions.querySelector<HTMLButtonElement>('[data-done]')!
   const foldBtn = actions.querySelector<HTMLButtonElement>('[data-fold]')!
-  const claimBtn = actions.querySelector<HTMLButtonElement>('[data-claim]')!
+  const claimGroup = actions.querySelector<HTMLElement>('[data-claim-group]')!
+  const claimBtns = CLAIMABLE_KINDS.map(
+    (k) => actions.querySelector<HTMLButtonElement>(`[data-claim="${k}"]`)!,
+  )
   const statusEl = actions.querySelector<HTMLElement>('[data-status]')!
 
   const newRoundBtn = document.createElement('button')
@@ -146,17 +163,36 @@ export function mountTable(host: HTMLElement): void {
     statusEl.textContent = msg
   }
 
+  function syncClaimButtons(): void {
+    const def = LEVELS[state.level]
+    const arranging = state.phase === 'arrange'
+    const show = arranging && def.claimAid
+    claimGroup.hidden = !show
+    const detected =
+      show && state.hands ? detectSpecial(state.hands[0]).kind : 0
+    for (const btn of claimBtns) {
+      const kind = Number(btn.dataset.claim) as SpecialKind
+      const match = show && detected > 0 && kind === detected
+      btn.disabled = !match
+      btn.classList.toggle('available', match)
+      btn.title = match
+        ? `Khai ${SPECIAL_NAMES_VI[kind]} — nhận ${SPECIAL_POINTS[kind]} điểm mỗi nhà`
+        : detected === 0
+          ? 'Bài không có mậu binh đặc biệt'
+          : `Bài của bạn là ${SPECIAL_NAMES_VI[detected as SpecialKind]}, không phải ${SPECIAL_NAMES_VI[kind]}`
+    }
+  }
+
   function syncActionButtons(): void {
     const def = LEVELS[state.level]
     const arranging = state.phase === 'arrange'
     actions.hidden = !arranging
     autoBtn.hidden = !(arranging && def.auto)
     foldBtn.hidden = !(arranging && def.fold)
-    claimBtn.hidden = !(arranging && def.claimAid)
     doneBtn.disabled = !arranging
     autoBtn.disabled = !arranging
     foldBtn.disabled = !arranging
-    claimBtn.disabled = !arranging
+    syncClaimButtons()
     dealBtn.disabled = state.phase === 'arrange'
     levelSelect.disabled = state.phase === 'arrange'
     newRoundBtn.hidden = state.phase !== 'result'
@@ -208,7 +244,8 @@ export function mountTable(host: HTMLElement): void {
         handEl.classList.add('is-special')
         const specialBadge = document.createElement('div')
         specialBadge.className = 'special-badge'
-        specialBadge.textContent = 'Đặc biệt'
+        specialBadge.textContent =
+          SPECIAL_NAMES_VI[status.specialKind as SpecialKind] || 'Đặc biệt'
         handEl.appendChild(specialBadge)
       }
 
@@ -265,7 +302,12 @@ export function mountTable(host: HTMLElement): void {
     renderBotsFaceDown()
     scoreboard.clearRound()
     scoreboard.renderCumulativeOnly([...seatNames()], state.totals)
-    if (LEVELS[state.level].peek) {
+    const special = detectSpecial(state.hands[0])
+    if (LEVELS[state.level].claimAid && special.kind > 0) {
+      setStatus(
+        `Có ${SPECIAL_NAMES_VI[special.kind]} — bấm Khai hoặc xếp chi thường.`,
+      )
+    } else if (LEVELS[state.level].peek) {
       setStatus('Chọn chi → bấm bài xếp vào. Peek: click bài bot.')
     } else {
       setStatus('Chọn chi → bấm bài trên tay để xếp, rồi Xong.')
@@ -296,7 +338,8 @@ export function mountTable(host: HTMLElement): void {
       setStatus('Bạn đã úp bài. So Át vẫn tính.')
     } else if (human === 'claim') {
       if (humanStatus.specialKind > 0) {
-        setStatus('Bạn khai Mậu binh đặc biệt.')
+        const name = SPECIAL_NAMES_VI[humanStatus.specialKind as SpecialKind]
+        setStatus(`Bạn khai ${name}.`)
       } else {
         setStatus('Không có mậu binh đặc biệt — tính như úp bài.')
       }
@@ -356,12 +399,18 @@ export function mountTable(host: HTMLElement): void {
     finish('fold')
   }
 
-  function onClaim(): void {
+  function onClaim(kind: SpecialKind): void {
     if (!LEVELS[state.level].claimAid) return
     if (!state.hands || state.phase !== 'arrange') return
     const special = detectSpecial(state.hands[0])
     if (special.kind === 0) {
-      setStatus('Không có mậu binh đặc biệt — tính như úp bài.')
+      setStatus('Không có mậu binh đặc biệt — xếp chi thường hoặc Úp bài.')
+      return
+    }
+    if (special.kind !== kind) {
+      setStatus(
+        `Bài của bạn là ${SPECIAL_NAMES_VI[special.kind]}, không phải ${SPECIAL_NAMES_VI[kind]}.`,
+      )
       return
     }
     finish('claim')
@@ -388,7 +437,11 @@ export function mountTable(host: HTMLElement): void {
   autoBtn.addEventListener('click', onAuto)
   doneBtn.addEventListener('click', onDone)
   foldBtn.addEventListener('click', onFold)
-  claimBtn.addEventListener('click', onClaim)
+  for (const btn of claimBtns) {
+    btn.addEventListener('click', () => {
+      onClaim(Number(btn.dataset.claim) as SpecialKind)
+    })
+  }
   newRoundBtn.addEventListener('click', onNewRound)
   levelSelect.addEventListener('change', () => {
     state.level = levelSelect.value as LevelId
