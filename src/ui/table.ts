@@ -84,17 +84,19 @@ export function mountTable(host: HTMLElement): void {
   actions.className = 'actions'
   actions.hidden = true
   actions.innerHTML = `
-    <button type="button" class="btn btn-warn" data-auto hidden>Xếp gợi ý</button>
-    <button type="button" class="btn btn-primary" data-done>Xong</button>
-    <button type="button" class="btn btn-danger" data-fold hidden>Úp bài</button>
+    <div class="actions-row">
+      <button type="button" class="btn btn-warn" data-auto hidden>Xếp gợi ý</button>
+      <button type="button" class="btn btn-primary" data-done>Xong</button>
+      <button type="button" class="btn btn-danger" data-fold hidden>Úp bài</button>
+      <span class="status-msg" data-status></span>
+    </div>
     <div class="claim-group" data-claim-group hidden>
-      <span class="claim-group-label">Khai:</span>
+      <span class="claim-group-label">Khai đặc biệt:</span>
       ${CLAIMABLE_KINDS.map(
         (k) =>
-          `<button type="button" class="btn btn-special" data-claim="${k}" disabled>${SPECIAL_NAMES_VI[k]} (+${SPECIAL_POINTS[k]})</button>`,
+          `<button type="button" class="btn btn-special" data-claim="${k}">${SPECIAL_NAMES_VI[k]} (+${SPECIAL_POINTS[k]})</button>`,
       ).join('')}
     </div>
-    <span class="status-msg" data-status></span>
   `
 
   const table = document.createElement('div')
@@ -164,22 +166,20 @@ export function mountTable(host: HTMLElement): void {
   }
 
   function syncClaimButtons(): void {
-    const def = LEVELS[state.level]
     const arranging = state.phase === 'arrange'
-    const show = arranging && def.claimAid
-    claimGroup.hidden = !show
+    // Claim always available while arranging (like 13-warriors); wrong claim → fold.
+    claimGroup.hidden = !arranging
     const detected =
-      show && state.hands ? detectSpecial(state.hands[0]).kind : 0
+      arranging && state.hands ? detectSpecial(state.hands[0]).kind : 0
+    const aid = LEVELS[state.level].claimAid
     for (const btn of claimBtns) {
       const kind = Number(btn.dataset.claim) as SpecialKind
-      const match = show && detected > 0 && kind === detected
-      btn.disabled = !match
+      btn.disabled = !arranging
+      const match = aid && detected === kind
       btn.classList.toggle('available', match)
       btn.title = match
-        ? `Khai ${SPECIAL_NAMES_VI[kind]} — nhận ${SPECIAL_POINTS[kind]} điểm mỗi nhà`
-        : detected === 0
-          ? 'Bài không có mậu binh đặc biệt'
-          : `Bài của bạn là ${SPECIAL_NAMES_VI[detected as SpecialKind]}, không phải ${SPECIAL_NAMES_VI[kind]}`
+        ? `Khai ${SPECIAL_NAMES_VI[kind]} — +${SPECIAL_POINTS[kind]} mỗi nhà`
+        : `Khai ${SPECIAL_NAMES_VI[kind]} (+${SPECIAL_POINTS[kind]}/nhà). Sai → tính như úp bài.`
     }
   }
 
@@ -305,12 +305,12 @@ export function mountTable(host: HTMLElement): void {
     const special = detectSpecial(state.hands[0])
     if (LEVELS[state.level].claimAid && special.kind > 0) {
       setStatus(
-        `Có ${SPECIAL_NAMES_VI[special.kind]} — bấm Khai hoặc xếp chi thường.`,
+        `Có ${SPECIAL_NAMES_VI[special.kind]} — bấm nút Khai phía trên, hoặc xếp chi thường.`,
       )
     } else if (LEVELS[state.level].peek) {
-      setStatus('Chọn chi → bấm bài xếp vào. Peek: click bài bot.')
+      setStatus('Xếp chi hoặc Khai đặc biệt. Peek: click bài bot.')
     } else {
-      setStatus('Chọn chi → bấm bài trên tay để xếp, rồi Xong.')
+      setStatus('Xếp chi hoặc bấm Khai đặc biệt, rồi Xong.')
     }
     syncActionButtons()
   }
@@ -400,20 +400,19 @@ export function mountTable(host: HTMLElement): void {
   }
 
   function onClaim(kind: SpecialKind): void {
-    if (!LEVELS[state.level].claimAid) return
     if (!state.hands || state.phase !== 'arrange') return
     const special = detectSpecial(state.hands[0])
-    if (special.kind === 0) {
-      setStatus('Không có mậu binh đặc biệt — xếp chi thường hoặc Úp bài.')
+    if (special.kind === kind && kind > 0) {
+      finish('claim')
       return
     }
-    if (special.kind !== kind) {
-      setStatus(
-        `Bài của bạn là ${SPECIAL_NAMES_VI[special.kind]}, không phải ${SPECIAL_NAMES_VI[kind]}.`,
-      )
-      return
-    }
-    finish('claim')
+    // Wrong claim → fold (do not auto-award a different special)
+    finish('fold')
+    setStatus(
+      special.kind === 0
+        ? `Không có ${SPECIAL_NAMES_VI[kind]} — tính như úp bài.`
+        : `Khai sai (bài là ${SPECIAL_NAMES_VI[special.kind]}) — tính như úp bài.`,
+    )
   }
 
   function onNewRound(): void {

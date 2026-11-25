@@ -47,7 +47,7 @@ export function createGuideSheet(): {
             <li><strong>Ba Thùng</strong> — mỗi chi một thùng (+6)</li>
             <li><strong>Ba Sảnh</strong> — mỗi chi một sảnh (+6)</li>
           </ul>
-          <p>Khai đặc biệt thì không so chi thường. Mức Át ẩn nút khai (phải tự nhận biết).</p>
+          <p>Hàng <strong>Khai đặc biệt</strong> luôn hiện khi xếp bài. Ở Jô/Đầm/Già nút đúng loại sẽ sáng; khai sai tính như úp bài. Khai đúng thì không so chi thường.</p>
           <p><strong>Úp bài</strong>: bỏ so chi (điểm chi = 0), vẫn tính So Át / Át to.</p>
         </section>
 
