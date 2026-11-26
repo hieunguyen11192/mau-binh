@@ -86,13 +86,35 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     return normalizeRules(snapshot?.settings ?? DEFAULT_TABLE_RULES)
   }
 
+  function leaveBeacon(): void {
+    if (!session) return
+    const url = import.meta.env.VITE_SUPABASE_URL
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+    if (!url || !key) return
+    void fetch(`${url}/rest/v1/rpc/mb_leave_room`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        p_room_id: session.roomId,
+        p_token: session.token,
+      }),
+      keepalive: true,
+    })
+  }
+
   async function doLeave(): Promise<void> {
     stopPoll()
-    if (session) {
+    const s = session
+    if (s) {
       try {
-        await leaveRoom(session.roomId, session.token)
+        await leaveRoom(s.roomId, s.token)
       } catch {
-        /* already gone / offline */
+        leaveBeacon()
       }
     }
     clearSession()
@@ -113,7 +135,46 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     stopPoll()
     pollTimer = window.setInterval(() => {
       void refresh().catch(() => undefined)
-    }, 1500)
+    }, 800)
+  }
+
+  function playersKey(players: { seat: number; name: string }[]): string {
+    return players
+      .map((p) => `${p.seat}:${p.name}`)
+      .sort()
+      .join('|')
+  }
+
+  /** Update ghế trong lobby mà không remount form luật. */
+  function paintLobbySeats(): void {
+    if (!snapshot || snapshot.status !== 'lobby') return
+    const panel = mainCol.querySelector('.mp-wait')
+    if (!panel) {
+      renderWaiting()
+      return
+    }
+    const sub = panel.querySelector('.mp-sub')
+    if (sub) {
+      sub.textContent = `Chia sẻ mã phòng cho bạn. Đang chờ… (${snapshot.players.length}/4)`
+    }
+    const list = panel.querySelector('.mp-seats')
+    if (list) {
+      list.innerHTML = [0, 1, 2, 3]
+        .map((s) => {
+          const p = snapshot!.players.find((x) => x.seat === s)
+          return p
+            ? `<li class="mp-seat-filled">${s + 1}. ${escapeHtml(p.name)}${p.isHost ? ' (chủ)' : ''}</li>`
+            : `<li class="mp-seat-empty">${s + 1}. — trống —</li>`
+        })
+        .join('')
+    }
+    const startBtn = panel.querySelector<HTMLButtonElement>('[data-start]')
+    if (startBtn) startBtn.disabled = snapshot.players.length < 2
+    const rulesLine = panel.querySelector('.rules-summary')
+    if (rulesLine) {
+      const rules = currentRules()
+      rulesLine.textContent = `Đọ Át: ${rules.soAtEnabled ? `Yes (${rules.soAtAnte})` : 'No'} · Át to: ${rules.atLonEnabled ? `Yes (${rules.atLonAnte})` : 'No'} · Heo: ${rules.heoEnabled ? `Yes (${rules.heoAnte}) · rổ ${snapshot.heoPot ?? 0}` : 'No'}`
+    }
   }
 
   let arrangeRound = -1
@@ -122,8 +183,6 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     if (!session) return
     const prev = snapshot
     snapshot = await fetchSnapshot(session.roomId, session.token)
-    const playersChanged =
-      JSON.stringify(prev?.players) !== JSON.stringify(snapshot.players)
     const phaseChanged =
       prev?.status !== snapshot.status ||
       prev?.currentRound !== snapshot.currentRound ||
@@ -134,11 +193,15 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       return
     }
 
-    // Soft-update while arranging / lobby without wiping the hand UI
-    if (snapshot.status === 'lobby' && playersChanged) {
-      renderWaiting()
+    if (snapshot.status === 'lobby') {
+      const changed =
+        !prev ||
+        playersKey(prev.players) !== playersKey(snapshot.players) ||
+        prev.heoPot !== snapshot.heoPot
+      if (changed) paintLobbySeats()
       return
     }
+
     if (snapshot.status === 'arranging' && prev) {
       const statusEl = mainCol.querySelector<HTMLElement>('[data-status-line]')
       if (statusEl) {
@@ -606,6 +669,13 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       })
     }
   }
+
+  window.addEventListener('pagehide', () => {
+    if (session) {
+      leaveBeacon()
+      clearSession()
+    }
+  })
 
   void render()
   if (session) startPoll()
