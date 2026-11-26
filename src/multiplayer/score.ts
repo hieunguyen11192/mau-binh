@@ -1,7 +1,13 @@
+import { scoreHeoRound } from '../core/heo'
 import { isFoul } from '../core/hand'
 import { scoreRoundChi, type SeatArrangement } from '../core/scoring'
 import { detectSpecial } from '../core/special'
 import { scoreAtLonhat, scoreSoAt } from '../core/so-at'
+import {
+  DEFAULT_TABLE_RULES,
+  normalizeRules,
+  type TableRules,
+} from '../core/table-rules'
 import type { Arrangement, Card } from '../core/types'
 import type { SeatRoundStatus } from '../game/round'
 import type { MpSubmission } from './types'
@@ -18,7 +24,13 @@ function resolvePlay(
   hand: Card[],
   sub: MpSubmission | undefined,
 ): { seat: SeatArrangement; status: SeatRoundStatus; arrangement?: Arrangement } {
-  if (!sub || sub.action === 'fold' || hand.length === 0) {
+  if (!hand.length) {
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
+  }
+  if (!sub || sub.action === 'fold') {
     return {
       seat: { front: [], middle: [], back: [], folded: true },
       status: { folded: true, specialKind: 0 },
@@ -82,21 +94,35 @@ export type MpScoreResult = {
   chiScores: number[]
   soAtScores: number[]
   atLonScores: number[]
+  heoScores: number[]
   roundScores: number[]
   seatStatuses: SeatRoundStatus[]
   arrangements: (Arrangement | null)[]
+  heoPotAfter: number
+  heoScoopSeat: number | null
+  heoPotBeforePayout: number
 }
 
-/** Score a multiplayer reveal for seats 0..3 (empty hand → folded). */
 export function scoreMultiplayerReveal(
   handsBySeat: Record<string, Card[]>,
   submissions: MpSubmission[],
+  opts?: {
+    rules?: Partial<TableRules>
+    heoPotBefore?: number
+    /** Which seats are occupied (pay heo). Default: hand length 13. */
+    occupied?: boolean[]
+  },
 ): MpScoreResult {
+  const rules = normalizeRules(opts?.rules ?? DEFAULT_TABLE_RULES)
+  const heoPotBefore = opts?.heoPotBefore ?? 0
   const bySeat = new Map(submissions.map((s) => [s.seat, s]))
   const seats: SeatArrangement[] = []
   const seatStatuses: SeatRoundStatus[] = []
   const arrangements: (Arrangement | null)[] = []
   const hands: Card[][] = []
+  const occupied =
+    opts?.occupied ??
+    [0, 1, 2, 3].map((i) => (handsBySeat[String(i)]?.length ?? 0) === 13)
 
   for (let i = 0; i < 4; ++i) {
     const hand = handsBySeat[String(i)] ?? []
@@ -108,18 +134,48 @@ export function scoreMultiplayerReveal(
   }
 
   const chiScores = scoreRoundChi(seats)
-  const soAtScores = scoreSoAt(hands)
-  const atLonScores = scoreAtLonhat(hands)
+  const soAtScores = scoreSoAt(
+    hands,
+    rules.soAtEnabled ? rules.soAtAnte : 0,
+  )
+  const atLonScores = scoreAtLonhat(
+    hands,
+    rules.atLonEnabled ? rules.atLonAnte : 0,
+  )
+
+  let heoScores = [0, 0, 0, 0]
+  let heoPotAfter = heoPotBefore
+  let heoScoopSeat: number | null = null
+  let heoPotBeforePayout = heoPotBefore
+
+  if (rules.heoEnabled) {
+    const heo = scoreHeoRound({
+      seats,
+      heoAnte: rules.heoAnte,
+      heoPotBefore,
+      payingSeats: occupied,
+    })
+    heoScores = heo.heoScores
+    heoPotAfter = heo.heoPotAfter
+    heoScoopSeat = heo.scoopSeat
+    heoPotBeforePayout = heo.heoPotBeforePayout
+  }
+
   const roundScores = chiScores.map(
-    (c, i) => c + soAtScores[i]! + atLonScores[i]!,
+    (c, i) =>
+      c + soAtScores[i]! + atLonScores[i]! + heoScores[i]!,
   )
 
   return {
     chiScores,
     soAtScores,
     atLonScores,
+    heoScores,
     roundScores,
     seatStatuses,
     arrangements,
+    heoPotAfter,
+    heoScoopSeat,
+    heoPotBeforePayout,
   }
 }

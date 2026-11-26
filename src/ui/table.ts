@@ -23,6 +23,7 @@ import {
   type ArrangeController,
 } from './arrange'
 import { createGuideSheet } from './guide'
+import { createRulesForm } from './rules-form'
 import {
   createScoreboard,
   scoreboardActionsHost,
@@ -48,6 +49,7 @@ type GameState = {
   hands: [Card[], Card[], Card[], Card[]] | null
   lastResult: PlayRoundResult | null
   totals: number[]
+  heoPot: number
 }
 
 /**
@@ -122,7 +124,9 @@ export function mountTable(host: HTMLElement): void {
   humanSeat.appendChild(arrangeHost)
 
   table.append(botsRow, center, humanSeat)
-  mainCol.append(toolbar, actions, table)
+
+  const rulesForm = createRulesForm()
+  mainCol.append(toolbar, rulesForm.root, actions, table)
 
   const scoreboard: ScoreboardView = createScoreboard(game)
   const arrange: ArrangeController = createArrangeController(arrangeHost)
@@ -159,6 +163,7 @@ export function mountTable(host: HTMLElement): void {
     hands: null,
     lastResult: null,
     totals: [0, 0, 0, 0],
+    heoPot: 0,
   }
 
   function setStatus(msg: string): void {
@@ -195,6 +200,7 @@ export function mountTable(host: HTMLElement): void {
     syncClaimButtons()
     dealBtn.disabled = state.phase === 'arrange'
     levelSelect.disabled = state.phase === 'arrange'
+    rulesForm.setEnabled(state.phase !== 'arrange')
     newRoundBtn.hidden = state.phase !== 'result'
   }
 
@@ -301,7 +307,10 @@ export function mountTable(host: HTMLElement): void {
     arrange.setEnabled(true)
     renderBotsFaceDown()
     scoreboard.clearRound()
-    scoreboard.renderCumulativeOnly([...seatNames()], state.totals)
+    const rules = rulesForm.getRules()
+    scoreboard.renderCumulativeOnly([...seatNames()], state.totals, {
+      heoPot: rules.heoEnabled ? state.heoPot : -1,
+    })
     const special = detectSpecial(state.hands[0])
     if (LEVELS[state.level].claimAid && special.kind > 0) {
       setStatus(
@@ -318,13 +327,17 @@ export function mountTable(host: HTMLElement): void {
   function finish(human: Arrangement | 'fold' | 'claim'): void {
     if (!state.hands || state.phase !== 'arrange') return
 
+    const rules = rulesForm.getRules()
     const result = playRound({
       level: state.level,
       human,
       hands: state.hands,
+      rules,
+      heoPotBefore: state.heoPot,
     })
     state.lastResult = result
     state.phase = 'result'
+    state.heoPot = result.heoPotAfter
 
     for (let i = 0; i < 4; ++i) {
       state.totals[i]! += result.roundScores[i]!
@@ -354,16 +367,27 @@ export function mountTable(host: HTMLElement): void {
     renderBotReveal(result.botArrangements, result.seatStatuses)
 
     const names = seatNames()
+    const heoNote =
+      result.heoScoopSeat !== null
+        ? `· ${names[result.heoScoopSeat]} hốt rổ ${result.heoPotBeforePayout}`
+        : rules.heoEnabled
+          ? '· tích lũy'
+          : ''
     scoreboard.renderRound(
       names.map((name, i) => ({
         name,
         chi: result.chiScores[i]!,
         soAt: result.soAtScores[i]!,
         atLon: result.atLonScores[i]!,
+        heo: result.heoScores[i]!,
         total: result.roundScores[i]!,
         cumulative: state.totals[i]!,
         statusLabel: statusLabelVi(result.seatStatuses[i]!),
       })),
+      {
+        heoPot: rules.heoEnabled ? state.heoPot : -1,
+        heoNote,
+      },
     )
     syncActionButtons()
   }
@@ -426,7 +450,10 @@ export function mountTable(host: HTMLElement): void {
     center.hidden = false
     center.textContent = 'Chọn độ khó rồi nhấn Chia bài.'
     scoreboard.clearRound()
-    scoreboard.renderCumulativeOnly([...seatNames()], state.totals)
+    const rules = rulesForm.getRules()
+    scoreboard.renderCumulativeOnly([...seatNames()], state.totals, {
+      heoPot: rules.heoEnabled ? state.heoPot : -1,
+    })
     setStatus('')
     syncActionButtons()
   }

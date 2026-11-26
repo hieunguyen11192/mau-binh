@@ -1,8 +1,9 @@
-# Chạy SQL multiplayer
+# SQL cần chạy trên Supabase
 
-## Đã xong 001? Chạy thêm fix này
+## Bắt buộc lần này: `003_table_rules_heo.sql`
 
-1. Mở: https://supabase.com/dashboard/project/mvgcrdwltvkyandszlos/sql/new
-2. **Cmd+V** paste file `supabase/migrations/002_fix_token.sql` (đã copy clipboard)
-3. Bấm **Run**
-4. Báo: **fix xong**
+1. https://supabase.com/dashboard/project/mvgcrdwltvkyandszlos/sql/new  
+2. Cmd+V (đã copy clipboard) hoặc mở `supabase/migrations/003_table_rules_heo.sql`  
+3. **Run** → báo **003 xong**
+
+Đã chạy trước đó: `001_multiplayer.sql`, `002_fix_token.sql`.

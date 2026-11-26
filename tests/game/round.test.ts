@@ -55,8 +55,11 @@ describe('playRound', () => {
     expect(a.roundScores).toHaveLength(4)
     expect(a.botArrangements).toHaveLength(3)
     expect(a.seatStatuses).toHaveLength(4)
+    expect(a.heoScores).toEqual([0, 0, 0, 0])
     expect(a.roundScores).toEqual(
-      a.chiScores.map((c, i) => c + a.soAtScores[i]! + a.atLonScores[i]!),
+      a.chiScores.map(
+        (c, i) => c + a.soAtScores[i]! + a.atLonScores[i]! + a.heoScores[i]!,
+      ),
     )
     expect(a.soAtScores).toEqual(scoreSoAt(hands))
     expect(a.atLonScores).toEqual(scoreAtLonhat(hands))

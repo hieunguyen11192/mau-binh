@@ -1,13 +1,13 @@
 import { suitStrength } from './cards'
 import type { Card } from './types'
 
-/** Each seat antes this into the So Át pot (4 × 15 = 60). */
+/** Default ante mỗi nhà vào hũ So Át (4 × 15 = 60). */
 export const SO_AT_ANTE = 15
 
-/** Pot payouts Nhất / Nhì / Ba / Bét from the 60-point So Át pot. */
+/** Pot payouts Nhất / Nhì / Ba / Bét from the default 60-point So Át pot. */
 export const SO_AT_POINTS: number[] = [30, 20, 10, 0]
 
-/** Each seat antes this into the Át to nhất pot (4 × 5 = 20). */
+/** Default ante mỗi nhà vào hũ Át to nhất (4 × 5 = 20). */
 export const AT_LON_ANTE = 5
 
 const ACE = 12
@@ -15,10 +15,8 @@ const TWO = 0
 
 type Metrics = {
   aceCount: number
-  /** Strongest Ace suit strength; unused when aceCount === 0 */
   aceSuit: number
   twoCount: number
-  /** Strongest Two suit strength; unused when twoCount === 0 */
   twoSuit: number
 }
 
@@ -46,50 +44,62 @@ function metrics(hand: Card[]): Metrics {
 function compareMetrics(a: Metrics, b: Metrics): number {
   if (a.aceCount !== b.aceCount) return a.aceCount - b.aceCount
   if (a.aceCount > 0) return a.aceSuit - b.aceSuit
-  // Remaining group all 0 Aces → So Hai
   if (a.twoCount !== b.twoCount) return a.twoCount - b.twoCount
   return a.twoSuit - b.twoSuit
 }
 
+function scaledSoAtPoints(ante: number): number[] {
+  const scale = ante / SO_AT_ANTE
+  return SO_AT_POINTS.map((p) => p * scale)
+}
+
 /**
- * So Át / So Hai net scores: each seat antes {@link SO_AT_ANTE}, pot 60 is paid
- * out as {@link SO_AT_POINTS} by rank; returned values are payout − ante (zero-sum).
+ * So Át / So Hai net scores.
+ * @param ante ante mỗi nhà; 0 / bỏ qua → toàn 0.
  */
-export function scoreSoAt(hands: Card[][]): number[] {
+export function scoreSoAt(
+  hands: Card[][],
+  ante: number = SO_AT_ANTE,
+): number[] {
   const n = hands.length
+  if (ante <= 0) return Array.from({ length: n }, () => 0)
+
   const ms = hands.map(metrics)
   const order = Array.from({ length: n }, (_, i) => i).sort(
-    (i, j) => compareMetrics(ms[j], ms[i]),
+    (i, j) => compareMetrics(ms[j]!, ms[i]!),
   )
+  const points = scaledSoAtPoints(ante)
 
   const payouts = Array.from({ length: n }, () => 0)
   let i = 0
   while (i < n) {
     let j = i + 1
-    while (j < n && compareMetrics(ms[order[i]], ms[order[j]]) === 0) j++
-    const pot = SO_AT_POINTS.slice(i, j).reduce((sum, p) => sum + p, 0)
+    while (j < n && compareMetrics(ms[order[i]!]!, ms[order[j]!]!) === 0) j++
+    const pot = points.slice(i, j).reduce((sum, p) => sum + p, 0)
     const share = pot / (j - i)
-    for (let k = i; k < j; k++) payouts[order[k]] = share
+    for (let k = i; k < j; k++) payouts[order[k]!] = share
     i = j
   }
-  return payouts.map((p) => p - SO_AT_ANTE)
+  return payouts.map((p) => p - ante)
 }
 
 /**
- * Át to nhất: each seat antes {@link AT_LON_ANTE} (pot 20). Same Ace ranking
- * as So Át — aceCount first (2 Aces beat 1 Ace♥), then strongest Ace suit
- * (♥ > ♦ > ♣ > ♠). Winner takes the pot; ties split. No Aces → pot split
- * evenly (net 0). Returned values are payout − ante (zero-sum).
+ * Át to nhất. @param ante ante mỗi nhà; 0 → toàn 0.
  */
-export function scoreAtLonhat(hands: Card[][]): number[] {
+export function scoreAtLonhat(
+  hands: Card[][],
+  ante: number = AT_LON_ANTE,
+): number[] {
   const n = hands.length
+  if (ante <= 0) return Array.from({ length: n }, () => 0)
+
   const ms = hands.map(metrics)
   const withAces = ms
     .map((m, i) => ({ i, m }))
     .filter((x) => x.m.aceCount > 0)
 
   const payouts = Array.from({ length: n }, () => 0)
-  const pot = AT_LON_ANTE * n
+  const pot = ante * n
 
   if (withAces.length === 0) {
     const share = pot / n
@@ -112,5 +122,5 @@ export function scoreAtLonhat(hands: Card[][]): number[] {
     for (const w of winners) payouts[w.i] = share
   }
 
-  return payouts.map((p) => p - AT_LON_ANTE)
+  return payouts.map((p) => p - ante)
 }

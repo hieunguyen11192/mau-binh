@@ -1,3 +1,4 @@
+import type { TableRules } from '../core/table-rules'
 import type { Arrangement, Card } from '../core/types'
 
 export type MpPlayer = {
@@ -28,6 +29,8 @@ export type MpSnapshot = {
   submitted: boolean
   submitCount: number
   roundStatus: 'arranging' | 'result' | null
+  settings?: Partial<TableRules>
+  heoPot?: number
 }
 
 export type MpSubmission = {

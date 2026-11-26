@@ -2,11 +2,17 @@ import {
   estimateArrangementPoints,
   optimizeHand,
 } from '../ai/optimizer'
+import { scoreHeoRound } from '../core/heo'
 import { isFoul } from '../core/hand'
 import { LEVELS, shouldBotFold, type LevelId } from '../core/levels'
 import { scoreRoundChi, type SeatArrangement } from '../core/scoring'
 import { detectSpecial } from '../core/special'
 import { scoreAtLonhat, scoreSoAt } from '../core/so-at'
+import {
+  DEFAULT_TABLE_RULES,
+  normalizeRules,
+  type TableRules,
+} from '../core/table-rules'
 import type { Arrangement, Card } from '../core/types'
 
 export type PlayRoundInput = {
@@ -14,6 +20,9 @@ export type PlayRoundInput = {
   human: Arrangement | 'fold' | 'claim'
   hands: [Card[], Card[], Card[], Card[]]
   rng?: () => number
+  rules?: Partial<TableRules>
+  /** Rổ heo trước ván này. */
+  heoPotBefore?: number
 }
 
 /** Per-seat outcome for UI (Úp bài / Đặc biệt / Binh). */
@@ -25,13 +34,16 @@ export type SeatRoundStatus = {
 
 export type PlayRoundResult = {
   chiScores: number[]
-  /** So Át pot net (ante 15, payout 30/20/10/0). */
   soAtScores: number[]
-  /** Át to nhất pot net (ante 5; Ace count then suit takes 20). */
   atLonScores: number[]
+  heoScores: number[]
   roundScores: number[]
   botArrangements: Arrangement[]
   seatStatuses: SeatRoundStatus[]
+  heoPotAfter: number
+  heoScoopSeat: number | null
+  heoPotBeforePayout: number
+  rules: TableRules
 }
 
 type ResolvedSeat = {
@@ -40,7 +52,6 @@ type ResolvedSeat = {
   arrangement?: Arrangement
 }
 
-/** Placeholder 3+5+5 split when special has no arranged layout (Dragon / SixPairs). */
 function chunkHand(hand: Card[]): Arrangement {
   return {
     front: hand.slice(0, 3),
@@ -75,7 +86,6 @@ function resolveHuman(
         arrangement: arr,
       }
     }
-    // Invalid claim (no special) → fold for chi
     return {
       seat: { front: [], middle: [], back: [], folded: true },
       status: { folded: true, specialKind: 0 },
@@ -145,12 +155,13 @@ function resolveBot(
 }
 
 /**
- * Orchestrate one round: bots arrange (handicap / claim / fold), human action,
- * then chi + So Át pot + Át to nhất. Ace pots always use full dealt hands
- * (folded seats included).
+ * Orchestrate one round: bots + human, then chi + optional pots + heo.
  */
 export function playRound(input: PlayRoundInput): PlayRoundResult {
   const rng = input.rng ?? Math.random
+  const rules = normalizeRules(input.rules ?? DEFAULT_TABLE_RULES)
+  const heoPotBefore = input.heoPotBefore ?? 0
+
   const humanResolved = resolveHuman(input.human, input.hands[0])
   const seats: SeatArrangement[] = [humanResolved.seat]
   const seatStatuses: SeatRoundStatus[] = [humanResolved.status]
@@ -164,18 +175,49 @@ export function playRound(input: PlayRoundInput): PlayRoundResult {
   }
 
   const chiScores = scoreRoundChi(seats)
-  const soAtScores = scoreSoAt(input.hands)
-  const atLonScores = scoreAtLonhat(input.hands)
+  const soAtScores = scoreSoAt(
+    input.hands,
+    rules.soAtEnabled ? rules.soAtAnte : 0,
+  )
+  const atLonScores = scoreAtLonhat(
+    input.hands,
+    rules.atLonEnabled ? rules.atLonAnte : 0,
+  )
+
+  let heoScores = [0, 0, 0, 0]
+  let heoPotAfter = heoPotBefore
+  let heoScoopSeat: number | null = null
+  let heoPotBeforePayout = heoPotBefore
+
+  if (rules.heoEnabled) {
+    const heo = scoreHeoRound({
+      seats,
+      heoAnte: rules.heoAnte,
+      heoPotBefore,
+      payingSeats: [true, true, true, true],
+    })
+    heoScores = heo.heoScores
+    heoPotAfter = heo.heoPotAfter
+    heoScoopSeat = heo.scoopSeat
+    heoPotBeforePayout = heo.heoPotBeforePayout
+  }
+
   const roundScores = chiScores.map(
-    (c, i) => c + soAtScores[i]! + atLonScores[i]!,
+    (c, i) =>
+      c + soAtScores[i]! + atLonScores[i]! + heoScores[i]!,
   )
 
   return {
     chiScores,
     soAtScores,
     atLonScores,
+    heoScores,
     roundScores,
     botArrangements,
     seatStatuses,
+    heoPotAfter,
+    heoScoopSeat,
+    heoPotBeforePayout,
+    rules,
   }
 }

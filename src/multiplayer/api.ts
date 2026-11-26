@@ -1,3 +1,4 @@
+import type { TableRules } from '../core/table-rules'
 import type { Arrangement } from '../core/types'
 import { getSupabase } from './supabase'
 import type { MpReveal, MpSession, MpSnapshot } from './types'
@@ -8,10 +9,17 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   return data as T
 }
 
-export async function createRoom(playerName: string): Promise<MpSession> {
-  const data = await rpc<MpSession>('mb_create_room', {
-    player_name: playerName,
-  })
+export async function createRoom(
+  playerName: string,
+  settings?: TableRules,
+): Promise<MpSession> {
+  const data = await rpc<MpSession & { settings?: TableRules; heoPot?: number }>(
+    'mb_create_room',
+    {
+      player_name: playerName,
+      p_settings: settings ?? null,
+    },
+  )
   return {
     roomId: data.roomId,
     code: data.code,
@@ -20,6 +28,30 @@ export async function createRoom(playerName: string): Promise<MpSession> {
     name: data.name,
     isHost: data.isHost,
   }
+}
+
+export async function updateSettings(
+  roomId: string,
+  token: string,
+  settings: TableRules,
+): Promise<MpSnapshot> {
+  return rpc<MpSnapshot>('mb_update_settings', {
+    p_room_id: roomId,
+    p_token: token,
+    p_settings: settings,
+  })
+}
+
+export async function setHeoPot(
+  roomId: string,
+  token: string,
+  heoPot: number,
+): Promise<MpSnapshot> {
+  return rpc<MpSnapshot>('mb_set_heo_pot', {
+    p_room_id: roomId,
+    p_token: token,
+    p_heo_pot: heoPot,
+  })
 }
 
 export async function joinRoom(

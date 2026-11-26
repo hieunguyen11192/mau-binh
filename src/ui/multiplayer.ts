@@ -3,8 +3,10 @@ import {
   fetchSnapshot,
   joinRoom,
   revealRound,
+  setHeoPot,
   startRound,
   submitPlay,
+  updateSettings,
 } from '../multiplayer/api'
 import { scoreMultiplayerReveal } from '../multiplayer/score'
 import { isMultiplayerConfigured } from '../multiplayer/supabase'
@@ -18,6 +20,11 @@ import {
 import { SPECIAL_NAMES_VI, type SpecialKind } from '../core/special'
 import { detectSpecial } from '../core/special'
 import { isFoul } from '../core/hand'
+import {
+  DEFAULT_TABLE_RULES,
+  normalizeRules,
+  type TableRules,
+} from '../core/table-rules'
 import type { Arrangement, Card } from '../core/types'
 import type { SeatRoundStatus } from '../game/round'
 import {
@@ -25,6 +32,7 @@ import {
   createFaceCard,
   type ArrangeController,
 } from './arrange'
+import { createRulesForm } from './rules-form'
 import { createScoreboard, type ScoreboardView } from './scoreboard'
 
 function statusLabelVi(s: SeatRoundStatus): string | undefined {
@@ -67,9 +75,15 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
   let pollTimer: number | null = null
   let totals = [0, 0, 0, 0]
   let arrange: ArrangeController | null = null
+  let lobbyRules = createRulesForm(DEFAULT_TABLE_RULES)
+  let lastHeoSyncedRound = -1
 
   const scoreboard: ScoreboardView = createScoreboard(shell)
   scoreboard.root.hidden = true
+
+  function currentRules(): TableRules {
+    return normalizeRules(snapshot?.settings ?? DEFAULT_TABLE_RULES)
+  }
 
   function stopPoll(): void {
     if (pollTimer !== null) {
@@ -146,6 +160,7 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       <label class="mp-field">Tên bạn
         <input type="text" data-name maxlength="24" placeholder="VD: Hieu" />
       </label>
+      <div data-rules-host></div>
       <div class="mp-actions">
         <button type="button" class="btn btn-primary" data-create>Tạo phòng</button>
       </div>
@@ -159,6 +174,8 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       <button type="button" class="btn" data-back>← Chế độ</button>
     `
     mainCol.appendChild(panel)
+    lobbyRules = createRulesForm(DEFAULT_TABLE_RULES)
+    panel.querySelector('[data-rules-host]')!.appendChild(lobbyRules.root)
 
     const nameInput = panel.querySelector<HTMLInputElement>('[data-name]')!
     const codeInput = panel.querySelector<HTMLInputElement>('[data-code]')!
@@ -173,10 +190,14 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       void (async () => {
         err.textContent = ''
         try {
-          session = await createRoom(nameInput.value.trim() || 'Host')
+          session = await createRoom(
+            nameInput.value.trim() || 'Host',
+            lobbyRules.getRules(),
+          )
           saveSession(session)
           snapshot = null
           totals = [0, 0, 0, 0]
+          lastHeoSyncedRound = -1
           startPoll()
           await render()
         } catch (e) {
@@ -221,18 +242,46 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
         : `<li class="mp-seat-empty">${s + 1}. — trống —</li>`
     })
 
+    const rules = currentRules()
     panel.innerHTML = `
       <h1>Phòng <span class="mp-code">${escapeHtml(snapshot.code)}</span></h1>
       <p class="mp-sub">Chia sẻ mã phòng cho bạn. Đang chờ… (${snapshot.players.length}/4)</p>
       <ul class="mp-seats">${seats.join('')}</ul>
+      <div class="rules-summary">
+        Đọ Át: ${rules.soAtEnabled ? `Yes (${rules.soAtAnte})` : 'No'} ·
+        Át to: ${rules.atLonEnabled ? `Yes (${rules.atLonAnte})` : 'No'} ·
+        Heo: ${rules.heoEnabled ? `Yes (${rules.heoAnte}) · rổ ${snapshot.heoPot ?? 0}` : 'No'}
+      </div>
       ${
         snapshot.isHost
-          ? `<button type="button" class="btn btn-primary" data-start ${snapshot.players.length < 2 ? 'disabled' : ''}>Bắt đầu ván</button>`
+          ? `<div data-host-rules></div><button type="button" class="btn" data-save-rules>Lưu luật</button>
+             <button type="button" class="btn btn-primary" data-start ${snapshot.players.length < 2 ? 'disabled' : ''}>Bắt đầu ván</button>`
           : `<p class="status-msg">Chờ chủ phòng bắt đầu…</p>`
       }
       <p class="status-msg" data-err></p>
       <button type="button" class="btn" data-leave>Rời phòng</button>
     `
+
+    if (snapshot.isHost) {
+      const hostRules = createRulesForm(rules)
+      panel.querySelector('[data-host-rules]')!.appendChild(hostRules.root)
+      panel.querySelector('[data-save-rules]')!.addEventListener('click', () => {
+        void (async () => {
+          const err = panel.querySelector<HTMLElement>('[data-err]')!
+          err.textContent = ''
+          try {
+            snapshot = await updateSettings(
+              session!.roomId,
+              session!.token,
+              hostRules.getRules(),
+            )
+            await render()
+          } catch (e) {
+            err.textContent = e instanceof Error ? e.message : String(e)
+          }
+        })()
+      })
+    }
 
     panel.querySelector('[data-leave]')!.addEventListener('click', () => {
       stopPoll()
@@ -404,7 +453,10 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       void doSubmit('fold')
     })
 
-    scoreboard.renderCumulativeOnly(names, totals)
+    const rules = currentRules()
+    scoreboard.renderCumulativeOnly(names, totals, {
+      heoPot: rules.heoEnabled ? (snapshot.heoPot ?? 0) : -1,
+    })
   }
 
   let lastScoredRound = 0
@@ -419,12 +471,37 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     mainCol.appendChild(table)
 
     const reveal = await revealRound(session.roomId, session.token)
-    const scored = scoreMultiplayerReveal(reveal.hands, reveal.submissions)
+    const rules = currentRules()
+    const scored = scoreMultiplayerReveal(reveal.hands, reveal.submissions, {
+      rules,
+      heoPotBefore: snapshot.heoPot ?? 0,
+      occupied: [0, 1, 2, 3].map((i) =>
+        reveal.players.some((p) => p.seat === i),
+      ),
+    })
 
     if (lastScoredRound !== reveal.round) {
       lastScoredRound = reveal.round
       for (let i = 0; i < 4; ++i) {
         totals[i]! += scored.roundScores[i]!
+      }
+    }
+
+    // Persist heo pot once per round (any client; deterministic)
+    if (
+      rules.heoEnabled &&
+      lastHeoSyncedRound !== reveal.round &&
+      scored.heoPotAfter !== (snapshot.heoPot ?? 0)
+    ) {
+      lastHeoSyncedRound = reveal.round
+      try {
+        snapshot = await setHeoPot(
+          session.roomId,
+          session.token,
+          scored.heoPotAfter,
+        )
+      } catch {
+        /* ignore race */
       }
     }
 
@@ -484,16 +561,27 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       revealEl.appendChild(block)
     }
 
+    const heoNote =
+      scored.heoScoopSeat !== null
+        ? `· ${names[scored.heoScoopSeat]} hốt ${scored.heoPotBeforePayout}`
+        : rules.heoEnabled
+          ? '· tích lũy'
+          : ''
     scoreboard.renderRound(
       names.map((name, i) => ({
         name,
         chi: scored.chiScores[i]!,
         soAt: scored.soAtScores[i]!,
         atLon: scored.atLonScores[i]!,
+        heo: scored.heoScores[i]!,
         total: scored.roundScores[i]!,
         cumulative: totals[i]!,
         statusLabel: statusLabelVi(scored.seatStatuses[i]!),
       })),
+      {
+        heoPot: rules.heoEnabled ? scored.heoPotAfter : -1,
+        heoNote,
+      },
     )
 
     table.querySelector('[data-leave]')!.addEventListener('click', () => {
