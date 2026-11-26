@@ -1,0 +1,125 @@
+import { isFoul } from '../core/hand'
+import { scoreRoundChi, type SeatArrangement } from '../core/scoring'
+import { detectSpecial } from '../core/special'
+import { scoreAtLonhat, scoreSoAt } from '../core/so-at'
+import type { Arrangement, Card } from '../core/types'
+import type { SeatRoundStatus } from '../game/round'
+import type { MpSubmission } from './types'
+
+function chunkHand(hand: Card[]): Arrangement {
+  return {
+    front: hand.slice(0, 3),
+    middle: hand.slice(3, 8),
+    back: hand.slice(8, 13),
+  }
+}
+
+function resolvePlay(
+  hand: Card[],
+  sub: MpSubmission | undefined,
+): { seat: SeatArrangement; status: SeatRoundStatus; arrangement?: Arrangement } {
+  if (!sub || sub.action === 'fold' || hand.length === 0) {
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
+  }
+
+  if (sub.action === 'claim') {
+    const special = detectSpecial(hand)
+    if (special.kind > 0) {
+      const arr = special.arranged ?? chunkHand(hand)
+      return {
+        seat: {
+          front: arr.front,
+          middle: arr.middle,
+          back: arr.back,
+          specialKind: special.kind,
+        },
+        status: { folded: false, specialKind: special.kind },
+        arrangement: arr,
+      }
+    }
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
+  }
+
+  const arr = sub.arrangement
+  if (!arr) {
+    return {
+      seat: { front: [], middle: [], back: [], folded: true },
+      status: { folded: true, specialKind: 0 },
+    }
+  }
+
+  if (isFoul(arr.front, arr.middle, arr.back)) {
+    return {
+      seat: {
+        front: arr.front,
+        middle: arr.middle,
+        back: arr.back,
+        folded: true,
+      },
+      status: { folded: true, specialKind: 0, foul: true },
+      arrangement: arr,
+    }
+  }
+
+  return {
+    seat: {
+      front: arr.front,
+      middle: arr.middle,
+      back: arr.back,
+    },
+    status: { folded: false, specialKind: 0 },
+    arrangement: arr,
+  }
+}
+
+export type MpScoreResult = {
+  chiScores: number[]
+  soAtScores: number[]
+  atLonScores: number[]
+  roundScores: number[]
+  seatStatuses: SeatRoundStatus[]
+  arrangements: (Arrangement | null)[]
+}
+
+/** Score a multiplayer reveal for seats 0..3 (empty hand → folded). */
+export function scoreMultiplayerReveal(
+  handsBySeat: Record<string, Card[]>,
+  submissions: MpSubmission[],
+): MpScoreResult {
+  const bySeat = new Map(submissions.map((s) => [s.seat, s]))
+  const seats: SeatArrangement[] = []
+  const seatStatuses: SeatRoundStatus[] = []
+  const arrangements: (Arrangement | null)[] = []
+  const hands: Card[][] = []
+
+  for (let i = 0; i < 4; ++i) {
+    const hand = handsBySeat[String(i)] ?? []
+    hands.push(hand)
+    const resolved = resolvePlay(hand, bySeat.get(i))
+    seats.push(resolved.seat)
+    seatStatuses.push(resolved.status)
+    arrangements.push(resolved.arrangement ?? null)
+  }
+
+  const chiScores = scoreRoundChi(seats)
+  const soAtScores = scoreSoAt(hands)
+  const atLonScores = scoreAtLonhat(hands)
+  const roundScores = chiScores.map(
+    (c, i) => c + soAtScores[i]! + atLonScores[i]!,
+  )
+
+  return {
+    chiScores,
+    soAtScores,
+    atLonScores,
+    roundScores,
+    seatStatuses,
+    arrangements,
+  }
+}
