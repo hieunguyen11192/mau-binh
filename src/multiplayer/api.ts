@@ -54,6 +54,16 @@ export async function setHeoPot(
   })
 }
 
+export async function leaveRoom(
+  roomId: string,
+  token: string,
+): Promise<void> {
+  await rpc<{ ok: boolean }>('mb_leave_room', {
+    p_room_id: roomId,
+    p_token: token,
+  })
+}
+
 export async function joinRoom(
   code: string,
   playerName: string,

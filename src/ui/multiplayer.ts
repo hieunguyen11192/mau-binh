@@ -2,6 +2,7 @@ import {
   createRoom,
   fetchSnapshot,
   joinRoom,
+  leaveRoom,
   revealRound,
   setHeoPot,
   startRound,
@@ -83,6 +84,22 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
 
   function currentRules(): TableRules {
     return normalizeRules(snapshot?.settings ?? DEFAULT_TABLE_RULES)
+  }
+
+  async function doLeave(): Promise<void> {
+    stopPoll()
+    if (session) {
+      try {
+        await leaveRoom(session.roomId, session.token)
+      } catch {
+        /* already gone / offline */
+      }
+    }
+    clearSession()
+    session = null
+    snapshot = null
+    arrange = null
+    renderLobby()
   }
 
   function stopPoll(): void {
@@ -284,11 +301,7 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     }
 
     panel.querySelector('[data-leave]')!.addEventListener('click', () => {
-      stopPoll()
-      clearSession()
-      session = null
-      snapshot = null
-      renderLobby()
+      void doLeave()
     })
 
     const startBtn = panel.querySelector<HTMLButtonElement>('[data-start]')
@@ -359,12 +372,7 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     `
 
     table.querySelector('[data-leave]')!.addEventListener('click', () => {
-      stopPoll()
-      clearSession()
-      session = null
-      snapshot = null
-      arrange = null
-      renderLobby()
+      void doLeave()
     })
 
     const others = table.querySelector<HTMLElement>('[data-others]')!
@@ -585,11 +593,7 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     )
 
     table.querySelector('[data-leave]')!.addEventListener('click', () => {
-      stopPoll()
-      clearSession()
-      session = null
-      snapshot = null
-      renderLobby()
+      void doLeave()
     })
 
     const nextBtn = table.querySelector<HTMLButtonElement>('[data-next]')
