@@ -237,8 +237,8 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     panel.innerHTML = `
       <h1>Chơi với bạn</h1>
       <p class="mp-sub">Tạo phòng hoặc nhập mã 6 ký tự. Cần ≥ 2 người (tối đa 4).</p>
-      <label class="mp-field">Tên bạn
-        <input type="text" data-name maxlength="24" placeholder="VD: Hieu" />
+      <label class="mp-field">Tên bạn <span class="rules-hint">(bắt buộc)</span>
+        <input type="text" data-name maxlength="24" placeholder="VD: Hieu" required />
       </label>
       <div data-rules-host></div>
       <div class="mp-actions">
@@ -269,11 +269,14 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     panel.querySelector('[data-create]')!.addEventListener('click', () => {
       void (async () => {
         err.textContent = ''
+        const name = nameInput.value.trim()
+        if (!name) {
+          err.textContent = 'Nhập tên trước khi tạo phòng.'
+          nameInput.focus()
+          return
+        }
         try {
-          session = await createRoom(
-            nameInput.value.trim() || 'Host',
-            lobbyRules.getRules(),
-          )
+          session = await createRoom(name, lobbyRules.getRules())
           saveSession(session)
           snapshot = null
           totals = [0, 0, 0, 0]
@@ -289,11 +292,20 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     panel.querySelector('[data-join]')!.addEventListener('click', () => {
       void (async () => {
         err.textContent = ''
+        const name = nameInput.value.trim()
+        const code = codeInput.value.trim()
+        if (!name) {
+          err.textContent = 'Nhập tên trước khi vào phòng.'
+          nameInput.focus()
+          return
+        }
+        if (!code) {
+          err.textContent = 'Nhập mã phòng.'
+          codeInput.focus()
+          return
+        }
         try {
-          session = await joinRoom(
-            codeInput.value.trim(),
-            nameInput.value.trim() || 'Player',
-          )
+          session = await joinRoom(code, name)
           saveSession(session)
           snapshot = null
           totals = [0, 0, 0, 0]
