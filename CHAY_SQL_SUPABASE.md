@@ -1,8 +1,8 @@
-# Chạy SQL multiplayer (1 lần)
+# Chạy SQL multiplayer
+
+## Đã xong 001? Chạy thêm fix này
 
 1. Mở: https://supabase.com/dashboard/project/mvgcrdwltvkyandszlos/sql/new
-2. Đăng nhập Supabase
-3. Paste toàn bộ file `supabase/migrations/001_multiplayer.sql` (đã copy clipboard nếu vừa chạy agent)
-4. Bấm **Run**
-
-Xong báo mình — mình test tạo phòng.
+2. **Cmd+V** paste file `supabase/migrations/002_fix_token.sql` (đã copy clipboard)
+3. Bấm **Run**
+4. Báo: **fix xong**

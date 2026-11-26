@@ -107,7 +107,7 @@ as $$
 declare
   v_code text;
   v_room public.mb_rooms%rowtype;
-  v_token text := encode(gen_random_bytes(16), 'hex');
+  v_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
   v_name text := trim(player_name);
 begin
   if v_name is null or char_length(v_name) < 1 then
@@ -149,7 +149,7 @@ as $$
 declare
   v_room public.mb_rooms%rowtype;
   v_seat int;
-  v_token text := encode(gen_random_bytes(16), 'hex');
+  v_token text := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
   v_name text := trim(player_name);
   v_code text := upper(trim(room_code));
 begin
