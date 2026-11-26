@@ -48,6 +48,19 @@ describe('so-at pot', () => {
     expect(scoreSoAt(hands).reduce((a, b) => a + b, 0)).toBe(0)
   })
 
+  it('2 players: pot = 2×ante, empty seats not passed in', () => {
+    const hands = [
+      hand(c(12, 3)), // Ace♥ → Nhất
+      hand(c(12, 0)), // Ace♠ → Nhì
+    ]
+    const scores = scoreSoAt(hands, 15)
+    expect(scores).toHaveLength(2)
+    expect(scores.reduce((a, b) => a + b, 0)).toBe(0)
+    // base [30,20] → scale pot 30: [18,12] nets [+3,−3]
+    expect(scores[0]).toBe(3)
+    expect(scores[1]).toBe(-3)
+  })
+
   it('2 Aces beat 1 Ace♥ — count before suit', () => {
     const hands = [
       hand(c(12, 0), c(12, 1)), // 2 Aces ♠♣ → Nhất (count)

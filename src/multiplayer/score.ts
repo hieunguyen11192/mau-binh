@@ -23,13 +23,16 @@ function chunkHand(hand: Card[]): Arrangement {
 function resolvePlay(
   hand: Card[],
   sub: MpSubmission | undefined,
+  occupied: boolean,
 ): { seat: SeatArrangement; status: SeatRoundStatus; arrangement?: Arrangement } {
-  if (!hand.length) {
+  // Empty chair — not in the game (inactive for chi + pots)
+  if (!occupied) {
     return {
       seat: { front: [], middle: [], back: [], folded: true },
       status: { folded: true, specialKind: 0 },
     }
   }
+
   if (!sub || sub.action === 'fold') {
     return {
       seat: { front: [], middle: [], back: [], folded: true },
@@ -109,7 +112,7 @@ export function scoreMultiplayerReveal(
   opts?: {
     rules?: Partial<TableRules>
     heoPotBefore?: number
-    /** Which seats are occupied (pay heo). Default: hand length 13. */
+    /** Which seats are occupied. Default: hand length 13. */
     occupied?: boolean[]
   },
 ): MpScoreResult {
@@ -127,21 +130,31 @@ export function scoreMultiplayerReveal(
   for (let i = 0; i < 4; ++i) {
     const hand = handsBySeat[String(i)] ?? []
     hands.push(hand)
-    const resolved = resolvePlay(hand, bySeat.get(i))
+    const resolved = resolvePlay(hand, bySeat.get(i), occupied[i]!)
     seats.push(resolved.seat)
     seatStatuses.push(resolved.status)
     arrangements.push(resolved.arrangement ?? null)
   }
 
   const chiScores = scoreRoundChi(seats)
-  const soAtScores = scoreSoAt(
-    hands,
+
+  // So Át / Át to: chỉ ghế có người
+  const activeIdx = [0, 1, 2, 3].filter((i) => occupied[i])
+  const activeHands = activeIdx.map((i) => hands[i]!)
+  const soAtActive = scoreSoAt(
+    activeHands,
     rules.soAtEnabled ? rules.soAtAnte : 0,
   )
-  const atLonScores = scoreAtLonhat(
-    hands,
+  const atLonActive = scoreAtLonhat(
+    activeHands,
     rules.atLonEnabled ? rules.atLonAnte : 0,
   )
+  const soAtScores = [0, 0, 0, 0]
+  const atLonScores = [0, 0, 0, 0]
+  activeIdx.forEach((seat, k) => {
+    soAtScores[seat] = soAtActive[k]!
+    atLonScores[seat] = atLonActive[k]!
+  })
 
   let heoScores = [0, 0, 0, 0]
   let heoPotAfter = heoPotBefore

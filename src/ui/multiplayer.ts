@@ -420,10 +420,14 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     table.className = 'mp-table'
     mainCol.appendChild(table)
 
-    const names = [0, 1, 2, 3].map((s) => {
-      const p = snapshot!.players.find((x) => x.seat === s)
-      return p?.name ?? `Ghế ${s + 1}`
-    })
+    const occupiedSeats = snapshot.players
+      .slice()
+      .sort((a, b) => a.seat - b.seat)
+      .map((p) => p.seat)
+    const names = occupiedSeats.map(
+      (s) => snapshot!.players.find((p) => p.seat === s)!.name,
+    )
+    const cumTotals = occupiedSeats.map((s) => totals[s]!)
 
     table.innerHTML = `
       <div class="toolbar">
@@ -537,7 +541,7 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
     })
 
     const rules = currentRules()
-    scoreboard.renderCumulativeOnly(names, totals, {
+    scoreboard.renderCumulativeOnly(names, cumTotals, {
       heoPot: rules.heoEnabled ? (snapshot.heoPot ?? 0) : -1,
     })
   }
@@ -588,10 +592,13 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       }
     }
 
-    const names = [0, 1, 2, 3].map((s) => {
-      const p = reveal.players.find((x) => x.seat === s)
-      return p?.name ?? `Ghế ${s + 1}`
-    })
+    const occupiedSeats = reveal.players
+      .slice()
+      .sort((a, b) => a.seat - b.seat)
+      .map((p) => p.seat)
+    const names = occupiedSeats.map(
+      (s) => reveal.players.find((p) => p.seat === s)!.name,
+    )
 
     table.innerHTML = `
       <div class="toolbar">
@@ -644,22 +651,27 @@ export function mountMultiplayer(host: HTMLElement, onBack: () => void): void {
       revealEl.appendChild(block)
     }
 
+    const scoopName =
+      scored.heoScoopSeat !== null
+        ? (reveal.players.find((p) => p.seat === scored.heoScoopSeat)?.name ??
+          `Ghế ${scored.heoScoopSeat + 1}`)
+        : ''
     const heoNote =
       scored.heoScoopSeat !== null
-        ? `· ${names[scored.heoScoopSeat]} hốt ${scored.heoPotBeforePayout}`
+        ? `· ${scoopName} hốt ${scored.heoPotBeforePayout}`
         : rules.heoEnabled
           ? '· tích lũy'
           : ''
     scoreboard.renderRound(
-      names.map((name, i) => ({
-        name,
-        chi: scored.chiScores[i]!,
-        soAt: scored.soAtScores[i]!,
-        atLon: scored.atLonScores[i]!,
-        heo: scored.heoScores[i]!,
-        total: scored.roundScores[i]!,
-        cumulative: totals[i]!,
-        statusLabel: statusLabelVi(scored.seatStatuses[i]!),
+      occupiedSeats.map((seat, i) => ({
+        name: names[i]!,
+        chi: scored.chiScores[seat]!,
+        soAt: scored.soAtScores[seat]!,
+        atLon: scored.atLonScores[seat]!,
+        heo: scored.heoScores[seat]!,
+        total: scored.roundScores[seat]!,
+        cumulative: totals[seat]!,
+        statusLabel: statusLabelVi(scored.seatStatuses[seat]!),
       })),
       {
         heoPot: rules.heoEnabled ? scored.heoPotAfter : -1,

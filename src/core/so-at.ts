@@ -48,13 +48,19 @@ function compareMetrics(a: Metrics, b: Metrics): number {
   return a.twoSuit - b.twoSuit
 }
 
-function scaledSoAtPoints(ante: number): number[] {
-  const scale = ante / SO_AT_ANTE
-  return SO_AT_POINTS.map((p) => p * scale)
+/**
+ * Place payouts for `n` players: keep Nhất/Nhì/… ratios from {@link SO_AT_POINTS},
+ * scaled so sum = n * ante (zero-sum after ante).
+ */
+function placePayoutsForN(n: number, ante: number): number[] {
+  const base = SO_AT_POINTS.slice(0, Math.max(n, 1))
+  const baseSum = base.reduce((a, b) => a + b, 0) || 1
+  const pot = n * ante
+  return SO_AT_POINTS.map((p, i) => (i < n ? (p / baseSum) * pot : 0))
 }
 
 /**
- * So Át / So Hai net scores.
+ * So Át / So Hai net scores for the given hands only (call with occupied seats).
  * @param ante ante mỗi nhà; 0 / bỏ qua → toàn 0.
  */
 export function scoreSoAt(
@@ -62,13 +68,13 @@ export function scoreSoAt(
   ante: number = SO_AT_ANTE,
 ): number[] {
   const n = hands.length
-  if (ante <= 0) return Array.from({ length: n }, () => 0)
+  if (ante <= 0 || n === 0) return Array.from({ length: n }, () => 0)
 
   const ms = hands.map(metrics)
   const order = Array.from({ length: n }, (_, i) => i).sort(
     (i, j) => compareMetrics(ms[j]!, ms[i]!),
   )
-  const points = scaledSoAtPoints(ante)
+  const points = placePayoutsForN(n, ante)
 
   const payouts = Array.from({ length: n }, () => 0)
   let i = 0
